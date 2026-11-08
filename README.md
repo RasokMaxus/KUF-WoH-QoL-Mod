@@ -1,6 +1,6 @@
 # KUF WoH QoL Mod
 
-A gameplay and interface mod for **Kingdom Under Fire: A War of Heroes (GOLD Edition)** on Steam.
+A gameplay, interface, and quality of life mod for **Kingdom Under Fire: A War of Heroes (GOLD Edition)** on Steam.
 
 - **Standard match mode:** start with 0 gold and 4 workers; the default mode for every map.
 - **Mines never run dry:** exhausted mines and veins keep paying a third of a normal trip.

@@ -1,0 +1,40 @@
+# kufmod config
+#
+# Lines starting with # are comments. Edit while the game is closed; changes apply the next
+# time the game starts. In multiplayer, every player needs the mod with the same settings.
+
+# Standard match mode
+# The "Gold" mode on the skirmish setup screen becomes "Standard": every player starts with
+# 0 gold and 4 workers. It is also the default mode for every map (instead of Casual).
+# Casual and Family are unchanged.
+standard-mode: true
+
+# Empty resource nodes
+# A gold mine, iron vein or mana node at 0 remaining keeps paying a third of a normal trip
+# (34 gold, 20 iron, 7 mana) instead of nothing.
+empty-nodes: true
+
+# Grid hotkeys
+# Press the buttons of the 3x3 grid (buildings to construct, units to train) with these keys.
+# Each layout row is one grid row, left to right. While a 3x3 grid is showing, these keys go to
+# the grid; otherwise they do what they normally do (hero skills, command hotkeys).
+# The numpad (7 8 9 / 4 5 6 / 1 2 3) keeps working as well.
+grid-hotkeys:
+  enabled: true
+  layout:
+    - QWE
+    - ASD
+    - ZXC
+
+# Build button
+# Workers (Peasants, Gnome Slaves) show a single Build button in the grid instead of all their
+# buildings, so the grid keys stay free for commands. Press it (or its grid key) to open the
+# building grid; Esc or choosing a building closes it again.
+build-button: true
+
+# Command hotkeys
+# Change the letter of a command button (the six ovals above the grid). Use the names listed
+# in kufmod_commands.txt, which the mod writes to the game folder each time the game starts.
+# Use "none" to remove a hotkey. Example:
+#   attack: F
+command-hotkeys:

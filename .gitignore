@@ -1,0 +1,19 @@
+# build output (the release copy lives in Release/)
+src/*.obj
+src/*.exp
+src/*.lib
+src/*.pdb
+src/*.dll
+
+# never commit game files
+*.exe
+*.res
+*.URE
+*.sav
+
+# python
+__pycache__/
+*.pyc
+
+# local previews
+*.png

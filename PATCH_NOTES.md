@@ -1,0 +1,99 @@
+# KUF WoH Mod — Patch Notes
+
+## Where to change your hotkeys
+
+All settings live in **`kufmod.yml`**, in your Kingdom Under Fire folder (next to
+`KingdomUnderFire.exe`). It is created with the default settings the first time you start the game
+with the mod. Open it with any text editor (Notepad works), save, and restart the game.
+
+**Grid hotkeys** — the keys for the 3×3 grid (buildings, units to train). Each line is one row of
+the grid, left to right:
+
+```yaml
+grid-hotkeys:
+  enabled: true
+  layout:
+    - QWE
+    - ASD
+    - ZXC
+```
+
+**Command hotkeys** — the letters of the six oval command buttons (Attack, Stop, Patrol, …). Add a
+line under `command-hotkeys:` with the command's name and the key you want, or `none` to remove it:
+
+```yaml
+command-hotkeys:
+  attack: F
+  stop: none
+```
+
+The mod writes **`kufmod_commands.txt`** to the game folder every time the game starts. It lists
+every command's name (first column) and its current key, and marks with `*` the keys that are also
+grid keys.
+
+---
+
+## Version 1.0
+
+### Economy
+
+**Standard match mode**
+- The "Gold" match mode on the skirmish setup screen is now called **Standard**.
+- Every player (human and computer) starts with **0 gold and 4 workers**, a more standard RTS
+  opening: you build your economy from your workers instead of spending a starting bank.
+- Standard is now the **default mode** for every map, instead of Casual. (To pick another mode,
+  left/right-click the map information panel on the setup screen, as before.)
+- Casual and Family modes are unchanged. Campaign missions are unaffected.
+- Setting: `standard-mode: true` / `false`.
+
+**Mines that never run dry**
+- A gold mine, iron vein or mana node that reaches **0 remaining** no longer stops paying. Every
+  trip from an exhausted node still returns **one third** of a normal trip:
+
+  | Resource | Normal trip | Exhausted node |
+  |----------|-------------|----------------|
+  | Gold     | 100         | 34             |
+  | Iron     | 60          | 20             |
+  | Mana     | 20          | 7              |
+
+- Workers keep mining an exhausted node on their own, and the computer players do too.
+- Being over your supply limit still reduces each trip as before (the third is taken from the
+  reduced amount).
+- Setting: `empty-nodes: true` / `false`.
+
+### Grid hotkeys
+
+- The 3×3 grid can be used with **Q W E / A S D / Z X C** (changeable, see above). Each key
+  presses the button in the same position, whatever that button is: buildings for workers,
+  units for barracks, research for other buildings.
+- **Button labels show the real key.** Hovering a button shows, for example, *Train Peasant (Q)*
+  or *Build Barrack (W)*. The game's old highlighted letters in button names are removed.
+- **The game's old building letters are switched off** while a grid is showing (pressing F no
+  longer builds a Farm), so only the grid keys build.
+- The numpad (7 8 9 / 4 5 6 / 1 2 3) still presses grid buttons too.
+- Command buttons keep their own letters. When a grid key takes a letter (for example A or S while
+  a worker's building grid is open), that command shows no key in its label until the grid closes.
+- Hero skills on Q W E R T Y work as before whenever no grid is showing.
+- Ctrl and Alt key combinations are never changed.
+
+### Build button for workers
+
+- Peasants and Gnome Slaves show a single **Build** button (Q) instead of their whole building
+  grid. Press it to open the buildings; choose a building, press **Esc**, or select another unit
+  to close it again. This keeps A, S and the other letters free for commands.
+- New hammer icons: a forged steel hammer for the Human Alliance and a rope-bound stone hammer for
+  the Dark Legion.
+- Setting: `build-button: true` / `false`.
+
+### Player colors (single-player skirmish)
+
+- A color box beside each player on the skirmish setup screen. Click it to choose one of the eight
+  player colors, or "?" to let the game decide. A color can only be chosen by one player; computer
+  players whose usual color is taken get a free one.
+
+### Notes
+
+- **Multiplayer:** the economy changes alter the game's rules. Every player in a match needs the
+  mod with the same `standard-mode` and `empty-nodes` settings, or the game will go out of sync.
+- If anything does not work, see `kufmod.log` in the game folder: it says which features were
+  switched on, and why one was left off.

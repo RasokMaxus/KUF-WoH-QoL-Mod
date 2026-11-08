@@ -1,4 +1,4 @@
-# KUF WoH Mod
+# KUF WoH QoL Mod
 
 A gameplay and interface mod for **Kingdom Under Fire: A War of Heroes (GOLD Edition)** on Steam.
 

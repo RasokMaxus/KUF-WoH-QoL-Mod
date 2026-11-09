@@ -48,6 +48,7 @@ static HWND g_palette;
 static int g_paletteSlot = -1;
 char g_dir[MAX_PATH];                     // folder of this DLL (the game folder), with trailing '\'
 static char g_logPath[MAX_PATH];
+int g_instance = 1;
 
 void Log(const char* fmt, ...) {
     FILE* f = NULL;
@@ -192,6 +193,20 @@ static const char* DEFAULT_CONFIG =
     "# (34 gold, 20 iron, 7 mana) instead of nothing.\n"
     "empty-nodes: true\n"
     "\n"
+    "# LAN play (test version)\n"
+    "# Multi Play then asks \"Locus Online\" or \"LAN\". LAN plays over your network or a virtual\n"
+    "# LAN (Radmin VPN, Hamachi): no Locus account, password or gamechain needed. Every player\n"
+    "# needs the mod with lan-play on. Locus Online works as before.\n"
+    "lan-play: false\n"
+    "# The address other players connect to. auto = Radmin VPN or Hamachi if present, else your\n"
+    "# LAN. Or write your address, e.g. lan-ip: 26.1.2.3\n"
+    "lan-ip: auto\n"
+    "# Rooms are announced by broadcast. If the others don't see your room, list their addresses,\n"
+    "# e.g. lan-peers: 26.1.2.3, 26.4.5.6\n"
+    "lan-peers:\n"
+    "# Write network details to kufmod.log and every LAN packet to netdump.txt (for bug reports).\n"
+    "lan-trace: false\n"
+    "\n"
     "# Grid hotkeys\n"
     "# Press the buttons of the 3x3 grid (buildings to construct, units to train) with these keys.\n"
     "# Each layout row is one grid row, left to right. While a 3x3 grid is showing, these keys go to\n"
@@ -295,7 +310,7 @@ static void LoadConfig() {
         char* colon = strchr(line, ':');
         if (!colon) continue;
         *colon = 0;
-        char key[64], value[64];
+        char key[64], value[256];
         strncpy_s(key, line, _TRUNCATE);
         strncpy_s(value, colon + 1, _TRUNCATE);
         Trim(key);
@@ -304,6 +319,10 @@ static void LoadConfig() {
             if (!strcmp(key, "build-button")) g_buildButton = IsTrue(value);
             else if (!strcmp(key, "standard-mode")) g_standardMode = IsTrue(value);
             else if (!strcmp(key, "empty-nodes")) g_emptyNodes = IsTrue(value);
+            else if (!strcmp(key, "lan-play")) g_lanPlay = IsTrue(value);
+            else if (!strcmp(key, "lan-ip")) strncpy_s(g_lanIp, value, _TRUNCATE);
+            else if (!strcmp(key, "lan-peers")) strncpy_s(g_lanPeers, value, _TRUNCATE);
+            else if (!strcmp(key, "lan-trace")) g_lanTrace = IsTrue(value);
             else Log("config: unknown setting \"%s\"", key);
             section[0] = sub[0] = 0;
             continue;
@@ -331,10 +350,10 @@ static void LoadConfig() {
         }
     }
     fclose(f);
-    Log("config: standard mode %s, empty nodes %s, grid hotkeys %s, build button %s, layout "
+    Log("config: standard mode %s, empty nodes %s, grid hotkeys %s, build button %s, lan play %s, layout "
         "%c%c%c/%c%c%c/%c%c%c, %d command hotkey changes",
         g_standardMode ? "on" : "off", g_emptyNodes ? "on" : "off", g_gridEnabled ? "on" : "off",
-        g_buildButton ? "on" : "off", g_gridKeys[0], g_gridKeys[1], g_gridKeys[2], g_gridKeys[3],
+        g_buildButton ? "on" : "off", g_lanPlay ? "on" : "off", g_gridKeys[0], g_gridKeys[1], g_gridKeys[2], g_gridKeys[3],
         g_gridKeys[4], g_gridKeys[5], g_gridKeys[6], g_gridKeys[7], g_gridKeys[8], g_numCommandKeys);
 }
 
@@ -953,6 +972,16 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     const char* name = strrchr(exe, '\\');
     if (_stricmp(name ? name + 1 : exe, "KingdomUnderFire.exe")) return TRUE;
     g_slide = (uintptr_t)GetModuleHandleA(NULL) - 0x400000;
+    // A second (third...) copy of the game on this PC is instance 2 (3...): it writes kufmod2.log
+    // and uses its own network port (lan.cpp). The mutex lives as long as the process.
+    for (g_instance = 1; g_instance < 8; g_instance++) {
+        char mutexName[64];
+        sprintf_s(mutexName, "Local\\kufmod-instance-%d", g_instance);
+        HANDLE m = CreateMutexA(NULL, TRUE, mutexName);
+        if (m && GetLastError() != ERROR_ALREADY_EXISTS) break;
+        if (m) CloseHandle(m);
+    }
+    if (g_instance > 1) sprintf_s(g_logPath, "%skufmod%d.log", g_dir, g_instance);
     {  // start a fresh log each time the game starts
         FILE* f = NULL;
         if (!fopen_s(&f, g_logPath, "w") && f) fclose(f);
@@ -960,6 +989,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     Log("kufmod loaded, base %p", (void*)(g_slide + 0x400000));
     LoadConfig();
     InstallEconomy();
+    InstallLan();
     if (!InstallKeyHook()) Log("unexpected game code at 0x502D19 (different game version?). Hotkeys disabled.");
     if (!InstallLabelHook()) Log("unexpected game code at 0x503F8D (different game version?). Labels unchanged.");
     if (!InstallBuildButton()) Log("unexpected game code for the grid fill (different game version?). Build button off.");

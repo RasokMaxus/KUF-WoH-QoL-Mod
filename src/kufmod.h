@@ -8,6 +8,7 @@
 // (0x400000). Windows may load the game elsewhere (ASLR); g_slide is the difference.
 extern uintptr_t g_slide;
 extern char g_dir[MAX_PATH];  // game folder, with a trailing backslash
+extern int g_instance;        // 1 for the first copy of the game on this PC, 2 for a second...
 
 template <class T> T Game(uintptr_t va) { return *(volatile T*)(va + g_slide); }
 
@@ -22,10 +23,15 @@ bool HookCall(uintptr_t va, const BYTE* expected, size_t len, void* target);
 bool Patch(uintptr_t va, const void* expected, const void* replacement, size_t len);
 
 // Settings from kufmod.yml that other files use.
-extern bool g_standardMode, g_emptyNodes, g_buildButton;
+extern bool g_standardMode, g_emptyNodes, g_buildButton, g_lanPlay;
+extern char g_lanIp[64];      // lan-ip: "auto" or an address
+extern char g_lanPeers[256];  // lan-peers: extra addresses for room announcements
+extern bool g_lanTrace;       // lan-trace: network log + netdump.txt
 
 // economy.cpp
 void InstallEconomy();
+// lan.cpp
+void InstallLan();
 // icons.cpp: builds res\misc\kufmod_icons.URE and points the game at it. Returns false if the
 // icons could not be prepared (the Build button then uses a building picture).
 bool PrepareBuildIcons(int32_t* humanIcon, int32_t* devilIcon);

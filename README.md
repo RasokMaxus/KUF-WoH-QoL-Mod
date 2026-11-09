@@ -38,12 +38,57 @@ Changes apply the next time the game starts.
 | `grid-hotkeys` | turn grid hotkeys on/off and choose the 9 keys |
 | `build-button` | the Build button for workers |
 | `command-hotkeys` | change the letter of any command (names in `kufmod_commands.txt`) |
+| `lan-play` | adds LAN to Multi Play (see below) |
+| `lan-ip`, `lan-peers` | LAN: your address, and extra addresses to announce rooms to |
+| `lan-trace` | LAN: write network details for bug reports |
 
-## Multiplayer
+## Multiplayer: Locus Online or LAN
 
-The economy changes alter the game's rules. Everyone in a multiplayer match needs the mod with the
-same `standard-mode` and `empty-nodes` settings, or the match will go out of sync. With both set to
-`false`, only interface features remain.
+The Steam version plays multiplayer through **Locus Online** (the Locus GameChain lobby). The mod
+adds **LAN play** next to it, so you can also play over a home network or a virtual LAN such as
+**Radmin VPN** or **Hamachi**, the way the original CD version did.
+
+> **LAN play is in testing.** It works in the mod's source (see *Building from source*) and will be
+> in the next download in [`Release`](Release); the current download does not have it yet.
+
+With `lan-play: true` in `kufmod.yml`, **Multi Play** asks which one you want.
+
+### Locus Online (as before)
+
+1. Multi Play → **Locus Online**.
+2. Choose your profile in the Registry and enter its password (your Locus account).
+3. Wait until the lobby says **Participating in GameChain** (the first time on a PC this can take
+   6–8 minutes), then create or join a room.
+
+Needs an internet connection and the LocusGameChain program that comes with the game. Players
+without the mod can join you, **but only if the match rules are the same**: set `standard-mode`
+and `empty-nodes` to `false`, or every player needs the mod with the same settings.
+
+### LAN (Radmin VPN, Hamachi or a real LAN)
+
+1. Everyone joins the same network: the same Radmin VPN or Hamachi network, or the same home LAN.
+2. Everyone installs the mod and sets `lan-play: true` in `kufmod.yml`, with the same
+   `standard-mode` and `empty-nodes` settings.
+3. Multi Play → **LAN** → choose a profile → **OK**. No password and no Locus account are needed;
+   the lobby says **LAN play**.
+4. One player creates a room; the others see it in the room list and join.
+
+The mod picks your Radmin/Hamachi address by itself. If it picks the wrong one, set it with
+`lan-ip` (e.g. `lan-ip: 26.1.2.3`). If the others don't see your room, list their addresses in
+`lan-peers` (e.g. `lan-peers: 26.4.5.6, 26.7.8.9`). Windows Firewall must allow Kingdom Under
+Fire on the network (it asks the first time). LAN rooms only show up for LAN players and never
+appear in Locus Online.
+
+### Switching
+
+You can switch every time you click Multi Play. Your profiles (the `multi` folder) work in both.
+To go back to Locus only, set `lan-play: false`.
+
+### Keeping matches in sync
+
+The economy changes alter the game's rules. Everyone in a match needs the same `standard-mode`
+and `empty-nodes` settings, or the match will go out of sync. With both set to `false`, only
+interface features remain.
 
 ## Compatibility
 
@@ -67,6 +112,7 @@ switches itself off, and `kufmod.log` says which.
   to PNG; `draw_hammers.py` draws the Build icons; `make_icons_data.py` encodes them into
   `src/icons_data.h`; `res.py` lists and extracts files from the game's `.res` archives.
 - `docs/REVERSING.md` — notes on how the game works internally, with the addresses the mod uses.
+- `docs/LAN.md` — how Steam multiplayer and Locus work, and how LAN play replaces Locus.
 
 ## License
 

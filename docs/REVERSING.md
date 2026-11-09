@@ -1,7 +1,9 @@
 # How the mod works: reverse-engineering notes
 
-Notes on `KingdomUnderFire.exe` from the Steam GOLD Edition (SHA-256
-`D72BC8814C4E3C5614B893C79FDE5AC13BF17FCAA7F830DFF8F4E240126E5CFC`). All addresses are virtual
+Notes on `KingdomUnderFire.exe` from the Steam GOLD Edition 1.416a (SHA-256
+`D72BC8814C4E3C5614B893C79FDE5AC13BF17FCAA7F830DFF8F4E240126E5CFC`); 1.416b (`B21E7A0A...E203`,
+9 November 2026) changed only version strings, the signature and resources, so every address
+below is the same. All addresses are virtual
 addresses at the exe's preferred image base `0x400000`; Windows loads the game elsewhere (ASLR), so
 the mod adds the difference (`g_slide`) at runtime.
 
@@ -63,6 +65,16 @@ Olive) and 16-bit copies from `0xBEA770`. They are written once per match at `0x
 array that `0x4D5860` fills (skirmish: start positions are shuffled, `0x4E0920`). The skirmish
 setup screen (`CSingleGameRegistrationMenu`) is made of real Win32 controls: player boxes are
 combo boxes with control IDs 350–357, race boxes 360–367.
+
+**Multiplayer room** (`CXCreateDialog`, a 1200×900 window of Win32 controls). Slot i (0–7, left
+and right column alternating) uses control IDs 816 + 10·i + 0 kick button, 1 player name box,
+2 record "(level)wins-losses", 3 portrait, 4 race box, 5 rank icon (`CXPNetGrade`, 33×28, which
+the mod replaces with its color swatch). Chat: box 786, Send 787, messages 784; Start 800. Room
+chat goes out through the room client `[[0xBED22C]+0x188]`, vtable `+0xA0` (message 0x4027, text)
+and comes in through the client's message handler `0x6E6600` (message 0x4020, string
+`"<type><sender>\n\r<text>"`, shown at `0x6E6687`). The mod sends its color messages as chat lines
+starting with `#KUFC ` and hides them there; the host keeps the list and every PC applies it at
+`0x4C7E3C`. In a network game `0xB83AD0` = 1.
 
 ## Keyboard and the command grid
 

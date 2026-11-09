@@ -10,7 +10,8 @@
 // Feature: grid hotkeys, command hotkeys, button labels and the worker Build button (below;
 //          the Build button's icons come from icons.cpp).
 //
-// Feature: player color selection on the single-player skirmish setup screen.
+// Feature: player color selection on the single-player skirmish setup screen and in the
+//          multiplayer room (see "multiplayer room" below for how choices are shared).
 //
 //  1. A watcher thread finds the setup window (class "XWndClass" with player boxes 350-357)
 //     and subclasses it, so our code runs on the game's own UI thread.
@@ -27,6 +28,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const int NUM_COLORS = 8;          // Orange Teal Blue Red Purple Yellow Cyan Olive
@@ -38,7 +40,12 @@ static const UINT_PTR SYNC_TIMER = 0x4B4D;
 
 uintptr_t g_slide;                        // actual load address - 0x400000
 static uintptr_t g_resume;                // where ColorHook returns to
-static int g_choice[NUM_SLOTS] = {-1, -1, -1, -1, -1, -1, -1, -1};  // -1 = automatic
+// Chosen color per slot, -1 = automatic ("?"). Single player and the multiplayer room keep their
+// own; g_choice points at the one of the screen that is open.
+static int g_spChoice[NUM_SLOTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+static int g_mpChoice[NUM_SLOTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+static int* g_choice = g_spChoice;
+static bool g_room;  // g_setup is the multiplayer room (CXCreateDialog), not the skirmish setup
 static int g_plan[11];                    // color per game slot, computed at match start
 static HINSTANCE g_inst;
 static HWND g_setup;                      // setup window we subclassed
@@ -76,20 +83,30 @@ static bool SinglePlayerSkirmish() {
 // ---------------------------------------------------------------- match start
 // Called once per game slot (slotOffset = 0, 4, ... 0x28). colors[s] is the color the game chose
 // for slot s, players[s] the player index in that slot (-1 = none). Returns the color to use.
+bool g_mpColors = true;  // setting multiplayer-colors
+
+// A network skirmish (not a campaign mission, not a replay): colors come from the room (g_mpChoice,
+// the host's list, the same on every PC).
+static bool NetworkSkirmish() {
+    return Game<uint8_t>(0xB83AD0) == 1 && Game<uint16_t>(0xB83AD2) == 0 && Game<uint8_t>(0xB83AD8) != 1;
+}
+
 extern "C" int __cdecl PickColor(int slotOffset, const int* colors, const int* players) {
     int s = slotOffset / 4;
-    if (!SinglePlayerSkirmish()) return colors[s];
+    if (!g_mpColors && NetworkSkirmish()) return colors[s];
+    if (!SinglePlayerSkirmish() && !NetworkSkirmish()) return colors[s];
+    const int* choice = SinglePlayerSkirmish() ? g_spChoice : g_mpChoice;
     if (s == 0) {  // first slot: plan every player at once
         bool used[NUM_COLORS] = {};
         for (int i = 0; i < 11; i++) {
             int p = players[i];
-            if (p >= 0 && p < NUM_SLOTS && g_choice[p] >= 0) used[g_choice[p]] = true;
+            if (p >= 0 && p < NUM_SLOTS && choice[p] >= 0) used[choice[p]] = true;
         }
         for (int i = 0; i < 11; i++) {
             int p = players[i], c = colors[i];
             g_plan[i] = c;
             if (p < 0 || p >= NUM_SLOTS) continue;                  // empty slot or neutral player
-            if (g_choice[p] >= 0) { g_plan[i] = g_choice[p]; continue; }
+            if (choice[p] >= 0) { g_plan[i] = choice[p]; continue; }
             if (c >= 0 && c < NUM_COLORS && !used[c]) { used[c] = true; continue; }
             g_plan[i] = -2;                                        // automatic, but color is taken
         }
@@ -225,6 +242,12 @@ static const char* DEFAULT_CONFIG =
     "# building grid; Esc or choosing a building closes it again.\n"
     "build-button: true\n"
     "\n"
+    "# Multiplayer colors\n"
+    "# In a multiplayer room, the square next to each player's name becomes a color swatch: click\n"
+    "# your own to choose your color (\"?\" = automatic). First come, first served; the room's host\n"
+    "# keeps the list. Players without the mod see the game's usual colors.\n"
+    "multiplayer-colors: true\n"
+    "\n"
     "# Command hotkeys\n"
     "# Change the letter of a command button (the six ovals above the grid). Use the names listed\n"
     "# in kufmod_commands.txt, which the mod writes to the game folder each time the game starts.\n"
@@ -317,6 +340,7 @@ static void LoadConfig() {
         Trim(value);
         if (indent == 0 && *value) {  // top-level setting
             if (!strcmp(key, "build-button")) g_buildButton = IsTrue(value);
+            else if (!strcmp(key, "multiplayer-colors")) g_mpColors = IsTrue(value);
             else if (!strcmp(key, "standard-mode")) g_standardMode = IsTrue(value);
             else if (!strcmp(key, "empty-nodes")) g_emptyNodes = IsTrue(value);
             else if (!strcmp(key, "lan-play")) g_lanPlay = IsTrue(value);
@@ -761,6 +785,172 @@ static bool TakenByOther(int c, int slot) {
     return false;
 }
 
+// ---------------------------------------------------------------- multiplayer room
+// The room (CXCreateDialog) is a 1200x900 window of Win32 controls. Slot i (0-7, left and right
+// column alternating) uses control IDs ROOM_SLOT + 10*i + : 0 kick "X", 1 player name box,
+// 2 record "(level)wins-losses", 3 portrait, 4 race box, 5 rank icon (CXPNetGrade, 33x28). The
+// swatches replace the rank icons. Room chat: box 786, Send 787, messages shown in 784.
+//
+// Choices travel as room chat lines the mod hides (the host relays chat to everyone, in LAN and
+// in Locus Online):
+//   "#KUFC R <color>"        a player asks for a color (-1 = "?") for himself
+//   "#KUFC A <c0> ... <c7>"  the host's list: the color of every slot. Everyone shows it and the
+//                            match starts with it (PickColor), so every PC gets the same colors.
+// The host decides: first come, first served; a taken color is refused. It keeps choices by
+// player name, so a color follows its player when he moves to another slot, and sends the list
+// again whenever the names in the slots change.
+static const int ROOM_SLOT = 816;
+static const char COLOR_TAG[] = "#KUFC ";
+
+struct NamedColor { char name[36]; int color; };
+static NamedColor g_named[16];   // host: choices by player name
+static char g_slotName[NUM_SLOTS][36];
+static int g_hostList[NUM_SLOTS] = {-1, -1, -1, -1, -1, -1, -1, -1};  // last list from the host
+
+static bool IsHost() { return Game<uint32_t>(0xBED1FC) != 0; }  // this PC runs the room server
+static void ApplyList();
+static const char* MyName() { return (const char*)(0xBEDA40 + g_slide); }
+
+static void RoomName(int slot, char* out, size_t size) {
+    *out = 0;
+    HWND box = g_setup ? GetDlgItem(g_setup, ROOM_SLOT + 10 * slot + 1) : NULL;
+    if (box) GetWindowTextA(box, out, (int)size);
+}
+
+// Room chat out: the room client [CXCreateDialog+0x188], vtable +0xA0 (message 0x4027, text),
+// as the chat box's Send does (0x6E3E3A). UI thread only.
+typedef void(__thiscall* ChatFn)(void* client, int message, const char* text);
+
+static void SendRoomLine(const char* text) {
+    uintptr_t dialog = Game<uintptr_t>(0xBED22C);
+    void* client = dialog ? *(void**)(dialog + 0x188) : NULL;
+    if (!client) return;
+    ChatFn send = *(ChatFn*)(*(uintptr_t*)client + 0xA0);
+    send(client, Game<uint8_t>(0xB41726) ? 0x4027 : 0x4020, text);
+}
+
+static int NamedColorOf(const char* name) {
+    for (const NamedColor& n : g_named)
+        if (n.name[0] && !strcmp(n.name, name)) return n.color;
+    return -1;
+}
+
+static void HostSendList() {
+    char text[128];
+    int len = sprintf_s(text, "%sA", COLOR_TAG);
+    for (int i = 0; i < NUM_SLOTS; i++) {
+        g_hostList[i] = g_slotName[i][0] ? NamedColorOf(g_slotName[i]) : -1;
+        len += sprintf_s(text + len, sizeof text - len, " %d", g_hostList[i]);
+    }
+    ApplyList();  // the host's own swatches at once; the others get it through the chat
+    SendRoomLine(text);
+}
+
+static void HostSetColor(const char* name, int c) {
+    if (c >= 0) {  // first come, first served
+        for (const NamedColor& n : g_named)
+            if (n.name[0] && n.color == c && strcmp(n.name, name)) {
+                Log("room: %s asked for color %d, taken by %s", name, c, n.name);
+                return;
+            }
+    }
+    NamedColor* slot = NULL;
+    for (NamedColor& n : g_named)
+        if (n.name[0] && !strcmp(n.name, name)) slot = &n;
+    if (!slot)
+        for (NamedColor& n : g_named)
+            if (!n.name[0]) { slot = &n; break; }
+    if (!slot) return;
+    strncpy_s(slot->name, name, _TRUNCATE);
+    slot->color = c;
+    Log("room: %s -> color %d", name, c);
+}
+
+static void RequestColor(int c) {  // from the palette, for this player's own slot
+    if (IsHost()) {
+        HostSetColor(MyName(), c);
+        HostSendList();
+    } else {
+        char text[32];
+        sprintf_s(text, "%sR %d", COLOR_TAG, c);
+        SendRoomLine(text);
+    }
+}
+
+static void ApplyList() {
+    for (int i = 0; i < NUM_SLOTS; i++) {
+        g_mpChoice[i] = g_hostList[i];
+        if (g_room && g_swatch[i]) InvalidateRect(g_swatch[i], NULL, FALSE);
+    }
+}
+
+// Room chat in: the room client's message handler (0x6E6600) shows a chat message (0x4020) from
+// one string, "<type><sender name>\n\r<text>" (case at 0x6E6687). Our lines are handled here and
+// not shown.
+extern "C" bool __cdecl OnRoomChat(const char* raw) {
+    if (!raw || !raw[0]) return false;
+    const char* sep = strstr(raw, "\n\r");
+    if (!sep) return false;
+    const char* text = sep + 2;
+    if (strncmp(text, COLOR_TAG, sizeof COLOR_TAG - 1)) return false;
+    char sender[36] = "";
+    size_t n = (size_t)(sep - raw - 1);
+    if (n >= sizeof sender) n = sizeof sender - 1;
+    memcpy(sender, raw + 1, n);
+    sender[n] = 0;
+    const char* body = text + sizeof COLOR_TAG - 1;
+    if (body[0] == 'R' && IsHost()) {
+        int c = atoi(body + 1);
+        if (c >= -1 && c < NUM_COLORS) {
+            HostSetColor(sender, c);
+            HostSendList();
+        }
+    } else if (body[0] == 'A') {
+        const char* p = body + 1;
+        for (int i = 0; i < NUM_SLOTS; i++) {
+            char* end;
+            long c = strtol(p, &end, 10);
+            if (end == p) break;
+            g_hostList[i] = (c >= -1 && c < NUM_COLORS) ? (int)c : -1;
+            p = end;
+        }
+        ApplyList();
+    }
+    Log("room: hidden line from %s: %s", sender, body);
+    return true;  // hidden
+}
+
+// Replaces, at 0x6E6687: mov edi,[edi+8] / push 0xA4DCE0 (the "\n\r" separator, relocated).
+static uintptr_t g_roomChatResume, g_roomChatExit, g_chatSeparator;
+static bool g_chatHidden;
+
+__declspec(naked) static void RoomChatHook() {
+    __asm {
+        mov edi, dword ptr [edi + 8]      // the chat string
+        pushad
+        push edi
+        call OnRoomChat
+        add esp, 4
+        mov byte ptr [g_chatHidden], al
+        popad
+        cmp byte ptr [g_chatHidden], 0
+        jne hidden
+        push dword ptr [g_chatSeparator]
+        jmp dword ptr [g_roomChatResume]  // 0x6E668F
+    hidden:
+        jmp dword ptr [g_roomChatExit]    // 0x6E6789: the handler's exit, as after a shown line
+    }
+}
+
+static bool InstallRoomChatHook() {
+    uint32_t sep = (uint32_t)(0xA4DCE0 + g_slide);
+    BYTE code[8] = {0x8B, 0x7F, 0x08, 0x68};
+    memcpy(code + 4, &sep, 4);
+    g_chatSeparator = sep;
+    g_roomChatExit = 0x6E6789 + g_slide;
+    return Hook(0x6E6687, code, sizeof code, RoomChatHook, &g_roomChatResume);
+}
+
 // ---------------------------------------------------------------- palette popup
 static const int CELL = 32, GAP = 4, COLS = 3;
 static const int PAL_SIZE = GAP + COLS * (CELL + GAP);
@@ -806,9 +996,13 @@ static LRESULT CALLBACK PaletteProc(HWND h, UINT m, WPARAM w, LPARAM l) {
             RECT r = CellRect(i);
             int c = i - 1;
             if (PtInRect(&r, pt) && !(c >= 0 && TakenByOther(c, slot))) {
-                g_choice[slot] = c;
-                Log("slot %d color -> %d", slot, c);
-                InvalidateRect(g_swatch[slot], NULL, FALSE);
+                if (g_room) {  // the host decides; its list updates the swatches
+                    RequestColor(c);
+                } else {
+                    g_choice[slot] = c;
+                    Log("slot %d color -> %d", slot, c);
+                    InvalidateRect(g_swatch[slot], NULL, FALSE);
+                }
             }
         }
         ClosePalette();  // any click, inside or outside, closes the palette
@@ -855,12 +1049,33 @@ static LRESULT CALLBACK SwatchProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         return 1;
     case WM_LBUTTONDOWN:
     case WM_RBUTTONDOWN:
-        ShowPalette(slot);
+        if (!g_room || !strcmp(g_slotName[slot], MyName())) ShowPalette(slot);  // in a room: own slot only
         return 0;
     case WM_MOUSEACTIVATE:
         return MA_NOACTIVATE;
     }
     return DefWindowProcA(h, m, w, l);
+}
+
+// Room: a slot with a player (its name box shows a name, not OPEN / CLOSE / CLOSED).
+static void SyncRoom() {
+    bool namesChanged = false;
+    for (int i = 0; i < NUM_SLOTS; i++) {
+        char name[36];
+        RoomName(i, name, sizeof name);
+        bool player = name[0] && _stricmp(name, "OPEN") && _stricmp(name, "CLOSE") && _stricmp(name, "CLOSED") &&
+                      _stricmp(name, "OBSERVER");
+        if (!player) name[0] = 0;
+        if (strcmp(name, g_slotName[i])) {
+            strcpy_s(g_slotName[i], name);
+            namesChanged = true;
+        }
+        HWND rank = GetDlgItem(g_setup, ROOM_SLOT + 10 * i + 5);
+        if (rank && IsWindowVisible(rank)) ShowWindow(rank, SW_HIDE);  // the swatch takes its place
+        if (!g_swatch[i]) continue;
+        if (player != (IsWindowVisible(g_swatch[i]) != FALSE)) ShowWindow(g_swatch[i], player ? SW_SHOWNA : SW_HIDE);
+    }
+    if (namesChanged && IsHost()) HostSendList();  // someone joined, left or moved
 }
 
 // A slot gets a swatch while its player box is shown and not set to "Closed" / "OPEN".
@@ -875,6 +1090,10 @@ static bool SlotInUse(HWND box) {
 }
 
 static void SyncSwatches() {
+    if (g_room) {
+        SyncRoom();
+        return;
+    }
     for (int i = 0; i < NUM_SLOTS; i++) {
         if (!g_swatch[i]) continue;
         bool show = SlotInUse(GetDlgItem(g_setup, PLAYER_BOX_ID + i));
@@ -900,6 +1119,23 @@ static void RegisterClasses() {
 
 static void CreateSwatches(HWND setup) {
     RegisterClasses();
+    if (g_room) {  // over each slot's rank icon
+        for (int i = 0; i < NUM_SLOTS; i++) {
+            HWND rank = GetDlgItem(setup, ROOM_SLOT + 10 * i + 5);
+            if (!rank || g_swatch[i]) continue;
+            RECT r;
+            GetWindowRect(rank, &r);
+            MapWindowPoints(NULL, setup, (POINT*)&r, 2);
+            g_swatch[i] = CreateWindowExA(0, "KufModSwatch", "", WS_CHILD | WS_CLIPSIBLINGS, r.left, r.top,
+                                          r.right - r.left, r.bottom - r.top, setup, (HMENU)(INT_PTR)(9000 + i),
+                                          g_inst, NULL);
+            SetWindowLongPtrA(g_swatch[i], GWLP_USERDATA, i);
+            SetWindowPos(g_swatch[i], HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+        SyncSwatches();
+        Log("room decorated (%s)", IsHost() ? "host" : "joined");
+        return;
+    }
     for (int i = 0; i < NUM_SLOTS; i++) {
         HWND box = GetDlgItem(setup, PLAYER_BOX_ID + i);
         if (!box || g_swatch[i]) continue;
@@ -933,6 +1169,8 @@ static LRESULT CALLBACK SetupProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         memset(g_swatch, 0, sizeof g_swatch);
         SetWindowLongPtrA(h, GWLP_WNDPROC, (LONG_PTR)original);
         g_setup = NULL;
+        g_room = false;  // g_mpChoice keeps the host's list for the match start
+        g_choice = g_spChoice;
     }
     return CallWindowProcA(original, h, m, w, l);
 }
@@ -947,7 +1185,17 @@ static DWORD WINAPI Watcher(LPVOID) {
         for (HWND h = NULL; (h = FindWindowExA(NULL, h, "XWndClass", NULL)) != NULL;) {
             DWORD owner = 0;
             GetWindowThreadProcessId(h, &owner);
-            if (owner != pid || !GetDlgItem(h, PLAYER_BOX_ID) || !GetDlgItem(h, RACE_BOX_ID)) continue;
+            if (owner != pid) continue;
+            bool setup = GetDlgItem(h, PLAYER_BOX_ID) && GetDlgItem(h, RACE_BOX_ID);
+            bool room = g_mpColors && GetDlgItem(h, ROOM_SLOT + 5) && GetDlgItem(h, 800) && GetDlgItem(h, 786);
+            if (!setup && !room) continue;
+            if (room) {  // a new room: nothing chosen yet
+                memset(g_named, 0, sizeof g_named);
+                memset(g_slotName, 0, sizeof g_slotName);
+                for (int i = 0; i < NUM_SLOTS; i++) g_mpChoice[i] = g_hostList[i] = -1;
+            }
+            g_room = room;
+            g_choice = room ? g_mpChoice : g_spChoice;
             g_setup = h;
             g_setupProc = (WNDPROC)GetWindowLongPtrA(h, GWLP_WNDPROC);
             SetWindowLongPtrA(h, GWLP_WNDPROC, (LONG_PTR)SetupProc);
@@ -996,6 +1244,10 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     if (!InstallColorHook()) {
         Log("unexpected game code at 0x4C7E3C (different game version?). Colors disabled.");
         return TRUE;
+    }
+    if (g_mpColors && !InstallRoomChatHook()) {
+        Log("unexpected game code at 0x6E7FE0 (different game version?). Multiplayer colors off.");
+        g_mpColors = false;
     }
     HANDLE t = CreateThread(NULL, 0, Watcher, NULL, 0, NULL);
     if (t) CloseHandle(t);

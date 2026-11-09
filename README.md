@@ -6,7 +6,8 @@ A gameplay, interface, and quality of life mod for **Kingdom Under Fire: A War o
 - **Mines never run dry:** exhausted mines and veins keep paying a third of a normal trip.
 - **Grid hotkeys:** Q W E / A S D / Z X C for the 3×3 grid, with the real key shown on every button.
 - **Build button** for Peasants and Gnome Slaves, with new hammer icons.
-- **Player color picker** on the skirmish setup screen.
+- **Player color picker** on the skirmish setup screen, and in multiplayer rooms (click the square
+  next to your name; first come, first served).
 - Everything can be switched on or off, and every hotkey changed, in one settings file.
 
 See [PATCH_NOTES.md](PATCH_NOTES.md) for the full list of changes and how to change your hotkeys.
@@ -37,6 +38,7 @@ Changes apply the next time the game starts.
 | `empty-nodes` | exhausted mines/veins keep paying a third of a trip |
 | `grid-hotkeys` | turn grid hotkeys on/off and choose the 9 keys |
 | `build-button` | the Build button for workers |
+| `multiplayer-colors` | the color swatches in multiplayer rooms |
 | `command-hotkeys` | change the letter of any command (names in `kufmod_commands.txt`) |
 | `lan-play` | adds LAN to Multi Play (see below) |
 | `lan-ip`, `lan-peers` | LAN: your address, and extra addresses to announce rooms to |
@@ -92,8 +94,10 @@ interface features remain.
 
 ## Compatibility
 
-Made for the current Steam GOLD Edition as of November 2026 (`KingdomUnderFire.exe` SHA-256
-`D72BC8814C4E3C5614B893C79FDE5AC13BF17FCAA7F830DFF8F4E240126E5CFC`). Every change checks the exact
+Made for the Steam GOLD Edition **1.416b** (9 November 2026, `KingdomUnderFire.exe` SHA-256
+`B21E7A0A0A20671AD8B7A6743CB3F97811A1EE1184E2B718420BE729FA38E203`); also works with 1.416a
+(`D72BC8814C4E3C5614B893C79FDE5AC13BF17FCAA7F830DFF8F4E240126E5CFC`), whose program code is
+identical. Every change checks the exact
 game code it expects before touching it. After a game update, any feature that no longer matches
 switches itself off, and `kufmod.log` says which.
 

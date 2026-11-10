@@ -33,6 +33,52 @@ grid keys.
 
 ---
 
+## Next version (in testing)
+
+These changes are in the mod's source and will be in the next download in `Release`; the current
+1.0 download does not have them yet. Every player in a multiplayer match needs the same version.
+
+### Computer players in multiplayer
+
+- The room's host can add **computer players** to a multiplayer room, in Locus Online and LAN
+  rooms alike. Open an empty slot's list (OPEN / CLOSE / OBSERVER) and pick **COMPUTER**; the slot
+  is closed for people.
+- Choose the computer's race in its race box (**Human**, **Devil** or **Random**), and click its
+  team button to put it on a team (none, A … H). Players and computers on the same team are
+  allies. Pick OPEN or CLOSE again to remove the computer.
+- The computers play the game's own skirmish AI. They join after the human players and get a
+  free color automatically.
+- The match goes on while an enemy computer is still playing, even when all other people have
+  surrendered or left. A computer with nothing left is out of the game; when no enemy is left,
+  you win.
+- The computer runs on every player's PC at the same time. `kufmod.log` writes a `sync check` line
+  now and then; these lines must be the same on every PC (a help for bug reports).
+- Setting: `multiplayer-computers: true` / `false` (needs `multiplayer-colors`).
+
+### LAN play
+
+- **Multi Play** asks: **Locus Online** (as before) or **LAN**. LAN play works over a home network
+  or a virtual LAN such as Radmin VPN or Hamachi, without a Locus account or password.
+- Rooms and the players in the lobby are shared over the network; the room's host runs everything
+  the Locus servers did.
+- Settings: `lan-play`, `lan-ip`, `lan-peers`, `lan-trace`. See the README.
+
+### Player colors in multiplayer rooms
+
+- The square next to each player's name in a multiplayer room becomes a color box: click your own
+  to choose your color ("?" = automatic). First come, first served; the room's host keeps the list.
+- Fixed: on some maps every player (and the computer) got the same orange color, when nobody
+  started at the map's first start position. This also affected skirmish.
+- Setting: `multiplayer-colors: true` / `false`.
+
+### Locus "start new account?" question
+
+- Locus sometimes asks at startup: "The Network has been restarted … start new account?" The mod
+  now answers **No** for you, so the box no longer appears. Setting:
+  `locus-new-account: no` (default) / `yes` / `ask` (show the question as before).
+
+---
+
 ## Version 1.0
 
 ### Economy

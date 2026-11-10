@@ -8,6 +8,9 @@ A gameplay, interface, and quality of life mod for **Kingdom Under Fire: A War o
 - **Build button** for Peasants and Gnome Slaves, with new hammer icons.
 - **Player color picker** on the skirmish setup screen, and in multiplayer rooms (click the square
   next to your name; first come, first served).
+- **Computer players in multiplayer:** the room's host can add computer opponents or teammates,
+  with race and team, in Locus Online and LAN rooms (in testing).
+- **LAN play** over a home network, Radmin VPN or Hamachi, next to Locus Online (in testing).
 - Everything can be switched on or off, and every hotkey changed, in one settings file.
 
 See [PATCH_NOTES.md](PATCH_NOTES.md) for the full list of changes and how to change your hotkeys.

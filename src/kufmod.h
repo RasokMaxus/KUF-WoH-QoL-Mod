@@ -28,6 +28,12 @@ extern char g_lanIp[64];      // lan-ip: "auto" or an address
 extern char g_lanPeers[256];  // lan-peers: extra addresses for room announcements
 extern bool g_lanTrace;       // lan-trace: network log + netdump.txt
 
+// perf.cpp (perf-trace diagnostic)
+extern bool g_perfTrace;
+void InstallPerf();
+// menufps.cpp
+extern int g_menuFps;
+void InstallMenuFps();
 // economy.cpp
 void InstallEconomy();
 // lan.cpp

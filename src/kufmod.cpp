@@ -226,6 +226,12 @@ static const char* DEFAULT_CONFIG =
     "# Write network details to kufmod.log and every LAN packet to netdump.txt (for bug reports).\n"
     "lan-trace: false\n"
     "\n"
+    "# Menu frame rate\n"
+    "# The animated menus (main menu, Single/Multi Play choice) are drawn this many times per\n"
+    "# second; the game draws them 20 times, which makes the mouse feel slow there. Menu\n"
+    "# animations keep their normal speed. 0 = the game's own 20.\n"
+    "menu-fps: 60\n"
+    "\n"
     "# Locus Online sometimes asks at startup: \"The Network has been restarted ... start new\n"
     "# account?\" Yes makes a new Locus account (deletes LocusGameChain\\test_db and\n"
     "# hostAccount.keystore; your multi\\ profiles stay). no = always answer No without asking,\n"
@@ -380,6 +386,8 @@ static void LoadConfig() {
             else if (!strcmp(key, "lan-ip")) strncpy_s(g_lanIp, value, _TRUNCATE);
             else if (!strcmp(key, "lan-peers")) strncpy_s(g_lanPeers, value, _TRUNCATE);
             else if (!strcmp(key, "lan-trace")) g_lanTrace = IsTrue(value);
+            else if (!strcmp(key, "perf-trace")) g_perfTrace = IsTrue(value);
+            else if (!strcmp(key, "menu-fps")) g_menuFps = atoi(value);
             else if (!strcmp(key, "locus-new-account"))
                 g_locusNewAccount = !_stricmp(value, "yes") ? 1 : !_stricmp(value, "ask") ? 2 : 0;
             else Log("config: unknown setting \"%s\"", key);
@@ -1281,6 +1289,8 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     InstallEconomy();
     InstallLan();
     InstallAiMp();
+    InstallPerf();
+    InstallMenuFps();
     if (!InstallLocusQuestion()) Log("unexpected game code at 0x57CC39 (different game version?). Locus question unchanged.");
     if (!InstallKeyHook()) Log("unexpected game code at 0x502D19 (different game version?). Hotkeys disabled.");
     if (!InstallLabelHook()) Log("unexpected game code at 0x503F8D (different game version?). Labels unchanged.");

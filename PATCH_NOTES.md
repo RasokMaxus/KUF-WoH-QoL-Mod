@@ -38,6 +38,14 @@ grid keys.
 These changes are in the mod's source and will be in the next download in `Release`; the current
 1.0 download does not have them yet. Every player in a multiplayer match needs the same version.
 
+### Smooth main menu
+
+- The main menu and the other animated menus were drawn only 20 times per second, so the mouse
+  felt slow there. They are now drawn 60 times per second; the menu animations keep their normal
+  speed. Setting: `menu-fps: 60` (20 to 240; `0` = the game's own 20).
+- `perf-trace: true` (off by default) writes frame times and mouse delay per second to
+  `kufmod.log` (a help for bug reports).
+
 ### Computer players in multiplayer
 
 - The room's host can add **computer players** to a multiplayer room, in Locus Online and LAN

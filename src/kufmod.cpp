@@ -1367,6 +1367,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     InstallLan();
     InstallAiMp();
     InstallPerf();
+    InstallSyncLog();
     InstallMenuFps();
     InstallTurns();
     InstallPathing();

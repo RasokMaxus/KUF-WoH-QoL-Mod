@@ -62,10 +62,33 @@ static void Report(int state) {
     g_updSum = g_updMax = g_gapMax = g_lagSum = g_lagMax = 0;
 }
 
+// Stalls: the match clock (game+0x604, ms) normally moves every few frames. When it stands still
+// for more than 200 ms of real time and then moves again, the game was waiting: in a network
+// match usually for another player's turn (Network Speed index word 0xB3BAF4), otherwise slow
+// frames. Pauses and menus also stop the clock, so long stalls may be those.
+static double g_clockSince;
+static int g_lastClock = -1;
+
+static void CheckStall(double now) {
+    uintptr_t game = Game<uintptr_t>(0xB8282C);
+    if (!game) { g_lastClock = -1; return; }
+    int clock = *(int*)(game + 0x604);
+    if (clock == g_lastClock) return;
+    if (g_lastClock > 0 && clock > g_lastClock && now - g_clockSince > 200) {
+        int s = g_lastClock / 1000;
+        Log("perf stall: match clock stood still %.0f ms at %d:%02d (%s, Network Speed index %d)",
+            now - g_clockSince, s / 60, s % 60, Game<BYTE>(0xB83AD0) ? "network match" : "single player",
+            Game<int16_t>(0xB3BAF4));
+    }
+    g_lastClock = clock;
+    g_clockSince = now;
+}
+
 static void __fastcall StateUpdate(void* frame) {
     if (!g_msgHook) g_msgHook = SetWindowsHookExA(WH_GETMESSAGE, MsgHook, NULL, GetCurrentThreadId());
     int state = *(int*)((char*)frame + 0x128);
     double start = Now();
+    CheckStall(start);
     if (g_secondStart == 0) g_secondStart = start;
     if (state != g_lastState || start - g_secondStart >= 1000) {
         if (g_lastState != -1) Report(g_lastState);
@@ -89,9 +112,7 @@ static void __fastcall StateUpdate(void* frame) {
 // carried out by 0x4DB870 (thiscall game, len, data; called from 0x4DB124, 0x4DB170, 0x4DB809).
 // We note each queued order and log how long it waited when the same bytes are carried out.
 typedef int(__thiscall* PushFn)(void* q, const void* data, int len, int x);
-typedef char(__thiscall* DispatchFn)(void* game, int len, const void* data);
 static PushFn g_spPush, g_mpPush;
-static DispatchFn g_dispatch;
 struct Pending { uint32_t hash; uint16_t cmd; int len; double t; };
 static Pending g_pending[64];
 static int g_numPending;
@@ -104,6 +125,10 @@ static uint32_t Hash(const void* data, int len) {
 
 static void NoteOrder(const void* data, int len) {
     if (!data || len < 2) return;
+    // Orders the game sends by itself every turn (0x62 turn marker; network: 0x3F1, 0x3EC) are not
+    // traced: at 1-tick turns that would be ~33 log lines a second.
+    uint16_t cmd = *(const uint16_t*)data;
+    if (cmd == 0x62 || cmd == 0x3F1 || cmd == 0x3EC) return;
     if (g_numPending == 64) memmove(g_pending, g_pending + 1, --g_numPending * sizeof(Pending));
     g_pending[g_numPending++] = {Hash(data, len), *(const uint16_t*)data, len, Now()};
 }
@@ -117,7 +142,8 @@ static int __fastcall MpPush(void* q, void*, const void* data, int len, int x) {
     return g_mpPush(q, data, len, x);
 }
 
-static char __fastcall Dispatch(void* game, void*, int len, const void* data) {
+// Called by sync.cpp's dispatcher hook for every order carried out (perf-trace on).
+void PerfOrderDispatched(int len, const void* data) {
     if (g_numPending && data && len >= 2) {
         uint32_t h = Hash(data, len);
         uint16_t cmd = *(const uint16_t*)data;
@@ -132,7 +158,6 @@ static char __fastcall Dispatch(void* game, void*, int len, const void* data) {
             memmove(g_pending + found, g_pending + found + 1, (--g_numPending - found) * sizeof(Pending));
         }
     }
-    return g_dispatch(game, len, data);
 }
 
 static bool SwapSlot(uintptr_t slotVa, uintptr_t originalVa, void* replacement) {
@@ -143,14 +168,8 @@ static bool SwapSlot(uintptr_t slotVa, uintptr_t originalVa, void* replacement) 
 static void InstallOrderTrace() {
     g_spPush = (PushFn)(0x58B8E0 + g_slide);
     g_mpPush = (PushFn)(0x6AFC00 + g_slide);
-    g_dispatch = (DispatchFn)(0x4DB870 + g_slide);
     bool ok = SwapSlot(0xA44488 + 4, 0x58B8E0, (void*)SpPush) && SwapSlot(0xA4C9A4 + 4, 0x6AFC00, (void*)MpPush);
-    static const uintptr_t sites[3] = {0x4DB124, 0x4DB170, 0x4DB809};
-    for (uintptr_t site : sites) {
-        BYTE expected[5] = {0xE8};
-        *(int32_t*)(expected + 1) = (int32_t)(0x4DB870 - (site + 5));
-        ok = HookCall(site, expected, sizeof expected, (void*)Dispatch) && ok;
-    }
+    // The dispatcher (0x4DB870) is hooked by sync.cpp, which calls PerfOrderDispatched.
     Log(ok ? "perf order trace on" : "perf order trace: unexpected game code (partly off)");
 }
 

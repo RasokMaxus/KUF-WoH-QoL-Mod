@@ -32,6 +32,8 @@ extern bool g_lanTrace;       // lan-trace: network log + netdump.txt
 // perf.cpp (perf-trace diagnostic)
 extern bool g_perfTrace;
 void InstallPerf();
+// sync.cpp
+void InstallSyncLog();
 // maps.cpp
 extern bool g_randomMaps, g_meleeDefault;
 void InstallRandomMaps();

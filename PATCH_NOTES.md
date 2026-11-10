@@ -33,6 +33,21 @@ grid keys.
 
 ---
 
+## Next version (in testing)
+
+- **Units pick the nearest enemy:** the game only measured the real distance to the first 4 enemies
+  it looked at and treated all others as equally far, so in big fights units went for far
+  enemies. Every enemy is now scored by its real distance (the priority order stays on top).
+- **Fixed a desync ("-SyncErr-") in multiplayer fights:** target priority could look at a target
+  that had just died before checking it, which could make the two PCs decide differently.
+- **`sync` lines in `kufmod.log`** during network matches (every 200 turns): the game's random
+  generator and the mod's decision counters. If a match goes out of sync, compare these lines in
+  both players' logs: the first one that differs shows when.
+- `perf-trace` logs `perf stall` lines when the match clock stops for more than 0.2 s, and no
+  longer logs the game's own per-turn orders.
+
+Tested: an 18-minute LAN match between two PCs, no desync, one 0.2 s stall.
+
 ## Version 2.0.1
 
 - **LAN only by default:** Multi Play goes straight to LAN, with no Locus choice and no Locus

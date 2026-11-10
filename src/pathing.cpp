@@ -19,6 +19,7 @@
 #include "kufmod.h"
 
 bool g_unitAvoidance = true;
+uint32_t g_syncYield;  // for the sync lines (sync.cpp)
 void NoteBlock(BYTE* unit, int idx, bool yieldNow);  // perf.cpp (perf-trace)
 extern bool g_perfTrace;
 
@@ -35,6 +36,7 @@ static int __stdcall Decide(BYTE* unit, int idx) {
         int16_t state = *(int16_t*)(b + 0x31A);
         bool ownWalking = *(int16_t*)(b + 8) == *(int16_t*)(unit + 8) && (state == 3 || state == 4);
         yieldNow = !headOn && !ownWalking;
+        if (yieldNow) g_syncYield++;
     }
     if (g_perfTrace) NoteBlock(unit, idx, yieldNow);
     return yieldNow;

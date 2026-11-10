@@ -49,8 +49,13 @@ static int Tier(BYTE* o) {
 // (esi = candidate, edi = the unit choosing)
 static uintptr_t g_scoreResume, g_scoreSkip;
 
-static int __stdcall AddTier(int score, BYTE* candidate) {
-    return score + Tier(candidate) * 100000;
+// The game's score is the walking path length for only the first 4 enemies it looks at; every
+// other enemy gets a flat 2000 (unit) / 4000 (building), whatever its distance. In a big fight the
+// first 4 are arbitrary, so units went for far enemies. The score is now the tier plus the real
+// distance (0x4E4E80, the same measure the chooser compares with its range) for every enemy.
+static int __stdcall AddTier(int score, BYTE* candidate, BYTE* unit) {
+    (void)score;  // -1 (not a valid target) is filtered out before this
+    return Tier(candidate) * 100000 + g_dist(unit, candidate);
 }
 
 __declspec(naked) static void ScoreHook() {
@@ -59,7 +64,8 @@ __declspec(naked) static void ScoreHook() {
         je skip
         push ecx
         push edx
-        push esi
+        push edi                        // the unit choosing
+        push esi                        // the candidate
         push eax
         call AddTier
         pop edx
@@ -78,16 +84,25 @@ __declspec(naked) static void ScoreHook() {
 typedef BYTE*(__thiscall* ChooserFn)(void* unit, int range, int flag);
 static BYTE* g_chooserTramp;
 
+// Counters for the sync lines (sync.cpp): what the mod decided, so two PCs' logs can be compared.
+uint32_t g_syncKept, g_syncSwitched, g_syncLeash, g_syncSpots;
+
+typedef char(__thiscall* ValidFn)(void* unit, void* target);
+static ValidFn g_validTarget;  // 0x48A390: the game's own "can attack this" check (alive, visible...)
+
 static BYTE* ChooseTarget(BYTE* unit, BYTE* proposed) {
     BYTE* current = *(BYTE**)(unit + 0x120);
     if (!proposed || !current || proposed == current) return proposed;
+    // The current target may have died since: check it the way the game does before reading it.
+    if (!g_validTarget(unit, current)) { g_syncSwitched++; return proposed; }
     typedef int(__thiscall * RangeFn)(void*);
     int range = (*(RangeFn**)unit)[0x74 / 4](unit);
-    if (g_dist(unit, current) > range) return proposed;  // current target got away
+    if (g_dist(unit, current) > range) { g_syncSwitched++; return proposed; }  // it got away
     // A unit already on a defensive building (tower) stays on it until it falls: arriving
     // enemy fighters do not pull it away.
-    if (Tier(current) == 2) return current;
-    if (Tier(proposed) < Tier(current)) return proposed;
+    if (Tier(current) == 2) { g_syncKept++; return current; }
+    if (Tier(proposed) < Tier(current)) { g_syncSwitched++; return proposed; }
+    g_syncKept++;
     return current;                                       // keep the current target
 }
 
@@ -112,6 +127,7 @@ static int __stdcall Leash(BYTE* unit, int leash, int dist) {
     int range = (*(RangeFn**)unit)[0x74 / 4](unit);
     int wide = range * 2 + 1;
     int result = leash > wide ? leash : wide;
+    if (dist > leash && dist <= result) g_syncLeash++;
     if (g_perfTrace && dist > leash)
         PerfNote("%8lu unit %p target %p at distance %d: game leash %d, search range %d -> %s",
                  GetTickCount(), unit, *(void**)(unit + 0x120), dist, leash, range,
@@ -155,6 +171,7 @@ static SpotFn g_spot;
 static const size_t SEARCH_SIZE = 0xB8;  // the local search object [ebp-0xBC .. ebp-0x8]
 
 static char __fastcall BuildingSpot(void* search, void*, int* x, int* y, int tx, int ty, int radius) {
+    g_syncSpots++;
     BYTE pristine[SEARCH_SIZE];
     memcpy(pristine, search, SEARCH_SIZE);
     const int cx = *x, cy = *y;
@@ -196,6 +213,7 @@ static char __fastcall BuildingSpot(void* search, void*, int* x, int* y, int tx,
 void InstallCombat() {
     if (!g_targetPriority) return;
     g_dist = (DistFn)(0x4E4E80 + g_slide);
+    g_validTarget = (ValidFn)(0x48A390 + g_slide);
     g_typeTable = 0xB870F4 + g_slide;
     static const BYTE scoreExpected[5] = {0x83, 0xF8, 0xFF, 0x74, 0x15};
     g_scoreSkip = 0x496937 + g_slide;

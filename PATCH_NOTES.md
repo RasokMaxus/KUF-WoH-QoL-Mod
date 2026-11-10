@@ -58,7 +58,10 @@ These changes are in the mod's source and will be in the next download in `Relea
   - they prefer enemy fighters, then workers and units that cannot attack, then towers, then other
     buildings (nearest first within each);
   - they keep their target unless something of a higher priority shows up or the target gets away;
-  - they chase a target that backs off (up to twice their search range) instead of letting go.
+  - they chase a target that backs off (up to twice their search range) instead of letting go;
+  - units attacking a tower stay on it until it falls, even when enemy fighters arrive;
+  - units attacking a building spread around all its sides (the nearest free spot) instead of
+    stacking up on the side they came from and standing out of reach behind each other.
 - Your own attack orders are unchanged. Setting: `target-priority: true` (`false` = as before).
   Every player needs the same value.
 

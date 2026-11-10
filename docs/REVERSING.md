@@ -119,3 +119,71 @@ tile the grid draws under every icon. The mod writes `res\misc\kufmod_icons.URE`
 
 `.res` archives ("EFB KUF Resource File") hold a directory of entries (name, folder, flag, offset,
 size) and store files uncompressed (`tools/res.py`).
+
+## Frame pacing and order delay (2.0)
+
+Found with `perf-trace` (`src/perf.cpp`): it times the main frame's state update and logs every
+order from the moment it is queued until it is carried out.
+
+- **The game loop** runs from MFC's idle handler (`0x4FEE30`), which calls the main frame's state
+  update `0x593F80` (state number at `frame+0x128`).
+- **Animated menus** (state 19, case `0x595C97`): `menu->Update()` (`[0xBED218]` vtable `+0x14`,
+  `0x721B40`; animations count frames at `menu+0x2B4`), then `Render()` (`[0xB82808]` vtable
+  `+0xC`, which also draws the game's own cursor), then a busy-wait on the frame timer `0xBED7CC`
+  (rate 20, set at `0x401C20`). `menu-fps` replaces the case: Update every 50 ms, Render at 60 fps.
+- **Orders** go into the command queue `[0xB870C8]` (vtable `+4`: single player `0x58B8E0`,
+  network `0x6AFC00`) and are carried out by `0x4DB870(len, data)`. They run in **turns** of N
+  ticks (tick `[0xB3BAE8]` = 30 ms): N = word table `0xB3BAF8` {6, 10, 14} at index `0xB3BAF4`
+  (single player 0, network 1, set at `0x4BF6F3`; the Network Speed order is handled at `0x4DC66B`;
+  the options dialog keeps a copy at `0xBED25C`). The game loop reads N at `0x4CF375` and
+  `0x4CFBD5`. An order waits for the end of the current turn plus one turn.
+
+## Unit movement (2.0)
+
+`perf-trace` also writes `pathtrace.txt`: every movement state change of your units, who blocks
+them, and what they attack.
+
+- **Movement state machine** `0x47E540` (thiscall, 2 args), state word `unit+0x31A`: 3 turn and
+  try a step, 4 walk, 10 arrived, 11 blocked, 12 give up, 13 wait then new path (`0x47EE00`, retry
+  counter `+0x362`), 14 new path now. Position `+0x18/+0x1C`, target `+0x178/+0x17C`, facing
+  `+0x298` (16 directions), owner word `+8`.
+- **Blocked** (state 11, `0x47F760`): the step test `0x47D530` returns 0 free, 1/2 blocked, 3 a
+  unit is in the way (its index in the object table `[0xB870C0]+0x2C38`). For a unit in the way
+  (`0x47F7F8`) the game resolves head-on meetings (`0x47ECD0`) or decides who yields; the other one
+  waits up to 50 ticks (`+0x360`). "Avoid units" (`+0x271`) makes the new path go around units.
+- `unit-avoidance` (`src/pathing.cpp`): yield at once unless the blocker is an own unit that is
+  walking, and set `+0x271` on the two other "new path now" branches (`0x47F7D9` for results 1/2,
+  `0x47E70F` for units whose mode word `+0x31C` is 1).
+
+## Combat targeting (2.0)
+
+- **Attack routine** `0x4850C0` (unit vtable `+0x18C`, vtable `0xA36C30`; runs while the order
+  word `unit+0xC` is attack), target `+0x120`, sub-state `+0x31C`.
+- **Target chooser** `0x496880` (18 callers): goes through enemies in range (`0x4E7180/0x4E7340`),
+  scores each with vtable `+0x210` (`0x489D70`: walking path length for up to 4 enemies, else 2000
+  for units / 4000 for buildings / +1500 for workers); the lowest wins. Re-checked every 60 ticks.
+- **Leash**: the target is dropped when farther than max(2 × type data `+0x174`, reach + 1, search
+  range + 1) (`0x4855D9`, `0x486F39`).
+- **Building spots**: `0x48DDA0` walks a line from the building's center toward the unit and takes
+  the first free cell (called at `0x4852FE`).
+- Type data: `[0xB870F4] + type * 0xAF8`; `+0x17C` ground attack, `+0x18C` air attack, `+0x278`
+  search range. Workers are types 0 (Human) and 15 (Devil).
+- `target-priority` (`src/combat.cpp`) adds a tier to the score, wraps the chooser to keep the
+  current target (towers until they fall), widens the leash, and runs the spot search toward 8
+  directions.
+
+## Maps and timer (2.0)
+
+- **Random maps**: `res\Map\Random\N+.def` = title, `min,max` players, optional map names. The
+  loader `0x6F2070` skips Custom-folder maps (`+0x5A == 1`, at `0x6F2730`); the pickers
+  (`0x6DE631`, `0x6EC412`, `0x6EC869`) use `rand() % count`, and `rand()` is only seeded with 999
+  (`0x4A2869`, `0x4A3A69`). Custom maps' player count `+0x4C` is not reliable; the mod uses the
+  "(N)" in the name.
+- **Melee/UMS default**: the map-change handler `0x6EC4E0` sets the game type box (control `0x158`)
+  to Use Map Settings for Custom-folder maps with scenario data (`0x6F0C40`); hook at `0x6EC5A7`.
+- **Clock**: the top bar draws minutes:seconds from `game+0x604` (ms) at `0x505B93` but skips it in
+  campaign (`word 0xB83AD2 == 1`, je at `0x505B8D`).
+- **Player colors**: the table `0xB3E390` (10 × 0xRRGGBB, 8 used) only drives the swatches, the
+  minimap and the hue matching for automatic colors (builder `0x4E16E0`, automatic pool
+  `0xBEA7AC`). Unit and building art stores one ready-colored copy per original color, so new
+  player colors would need new art copies.

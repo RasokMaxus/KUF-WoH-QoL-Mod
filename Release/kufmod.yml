@@ -14,6 +14,69 @@ standard-mode: true
 # (34 gold, 20 iron, 7 mana) instead of nothing.
 empty-nodes: true
 
+# LAN play (test version)
+# Multi Play then asks "Locus Online" or "LAN". LAN plays over your network or a virtual
+# LAN (Radmin VPN, Hamachi): no Locus account, password or gamechain needed. Every player
+# needs the mod with lan-play on. Locus Online works as before.
+lan-play: false
+# The address other players connect to. auto = Radmin VPN or Hamachi if present, else your
+# LAN. Or write your address, e.g. lan-ip: 26.1.2.3
+lan-ip: auto
+# Rooms are announced by broadcast. If the others don't see your room, list their addresses,
+# e.g. lan-peers: 26.1.2.3, 26.4.5.6
+lan-peers:
+# Write network details to kufmod.log and every LAN packet to netdump.txt (for bug reports).
+lan-trace: false
+
+# Menu frame rate
+# The animated menus (main menu, Single/Multi Play choice) are drawn this many times per
+# second; the game draws them 20 times, which makes the mouse feel slow there. Menu
+# animations keep their normal speed. 0 = the game's own 20.
+menu-fps: 60
+
+# Order delay
+# The game carries out orders in turns of a few ticks (1 tick = 30 ms); an order waits for the
+# end of the current turn and one more turn. Shorter turns = units react sooner.
+# Single player turn in ticks (the game's own: 6, about 0.25 s per order; 1 = about 0.05 s).
+single-player-turn: 1
+# Multiplayer: ticks for the three Network Speed choices (the game's own: 6, 10, 14). The
+# default choice is the middle one. Too short for a slow connection makes the game pause
+# briefly while it waits. Every player needs the same values.
+network-speed: 3, 6, 10
+# The Network Speed a multiplayer match starts with: low, high or extra (the game's own: high).
+# It can still be changed during the match in the game's options.
+network-speed-start: low
+
+# Unit avoidance
+# A unit blocked by another unit waits (up to 1.5 s) only if the blocker is one of your own
+# units that is walking; otherwise (a stuck unit, a chicken, an enemy) it walks around at
+# once instead of standing in line. false = the game's own behaviour.
+unit-avoidance: true
+
+# Target priority
+# Units choosing their own target prefer enemy fighters, then workers, then towers, then other
+# buildings (nearest first within each), and keep their target instead of switching to
+# whatever is a little closer. Your own attack orders are unchanged. false = as before.
+target-priority: true
+
+# Campaign timer
+# Show the match clock (top right, as in skirmish and multiplayer) in campaign missions too.
+campaign-timer: true
+
+# Random maps
+# The "Random (N players)" map choices pick from every map for that many players (the game
+# only used six community maps, always in the same order). false = as before.
+random-maps: true
+# Maps start on Melee unless their name contains "(Custom)" (some official maps, like Simple2
+# and Open Field, started on Use Map Settings, which gives a black screen). false = as before.
+melee-default: true
+
+# Locus Online sometimes asks at startup: "The Network has been restarted ... start new
+# account?" Yes makes a new Locus account (deletes LocusGameChain\test_db and
+# hostAccount.keystore; your multi\ profiles stay). no = always answer No without asking,
+# yes = always Yes, ask = show the question.
+locus-new-account: no
+
 # Grid hotkeys
 # Press the buttons of the 3x3 grid (buildings to construct, units to train) with these keys.
 # Each layout row is one grid row, left to right. While a 3x3 grid is showing, these keys go to
@@ -31,6 +94,18 @@ grid-hotkeys:
 # buildings, so the grid keys stay free for commands. Press it (or its grid key) to open the
 # building grid; Esc or choosing a building closes it again.
 build-button: true
+
+# Multiplayer colors
+# In a multiplayer room, the square next to each player's name becomes a color swatch: click
+# your own to choose your color ("?" = automatic). First come, first served; the room's host
+# keeps the list. Players without the mod see the game's usual colors.
+multiplayer-colors: true
+
+# Computer players in multiplayer (needs multiplayer-colors)
+# In a multiplayer room the host can pick COMPUTER in an empty slot, then choose its race
+# (Human, Devil, Random) and click its team button for a team (none, A ... H).
+# Every player needs the mod with this on.
+multiplayer-computers: true
 
 # Command hotkeys
 # Change the letter of a command button (the six ovals above the grid). Use the names listed

@@ -1350,7 +1350,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
         FILE* f = NULL;
         if (!fopen_s(&f, g_logPath, "w") && f) fclose(f);
     }
-    Log("kufmod loaded, base %p", (void*)(g_slide + 0x400000));
+    Log("kufmod 2.0 loaded, base %p", (void*)(g_slide + 0x400000));
     LoadConfig();
     InstallEconomy();
     InstallLan();

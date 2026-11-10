@@ -9,11 +9,20 @@ A gameplay, interface, and quality of life mod for **Kingdom Under Fire: A War o
 - **Player color picker** on the skirmish setup screen, and in multiplayer rooms (click the square
   next to your name; first come, first served).
 - **Computer players in multiplayer:** the room's host can add computer opponents or teammates,
-  with race and team, in Locus Online and LAN rooms (in testing).
-- **LAN play** over a home network, Radmin VPN or Hamachi, next to Locus Online (in testing).
+  with race and team, in Locus Online and LAN rooms.
+- **LAN play** over a home network, Radmin VPN or Hamachi, next to Locus Online.
+- **Faster unit response:** orders are carried out in about 0.03 s in single player (was about
+  0.25 s) and 0.1–0.15 s in multiplayer (was 0.3–0.6 s).
+- **Smarter units:** they walk around blockers instead of standing in line, prefer enemy fighters
+  over buildings, stay on their target and chase it, finish towers they attack, and spread around
+  buildings instead of piling up on one side.
+- **Maps:** "Random" maps really pick from every map, maps start on Melee (no more black screens on
+  Simple2 or Open Field), and campaign missions show the match clock.
+- **Smooth main menu:** drawn at 60 frames per second instead of 20.
 - Everything can be switched on or off, and every hotkey changed, in one settings file.
 
-See [PATCH_NOTES.md](PATCH_NOTES.md) for the full list of changes and how to change your hotkeys.
+**Current version: 2.0.** See [PATCH_NOTES.md](PATCH_NOTES.md) for the full list of changes and
+how to change your hotkeys.
 
 ## Install
 
@@ -28,7 +37,14 @@ That's all. No game file is changed: the mod makes its changes in memory while t
 ## Uninstall
 
 Delete `dinput8.dll` from the game folder. You can also delete `kufmod.yml`, `kufmod.log`,
-`kufmod_commands.txt` and `res\misc\kufmod_icons.URE`, which the mod creates.
+`kufmod_commands.txt` and `res\misc\kufmod_icons.URE`, which the mod creates (and `pathtrace.txt`
+if you used `perf-trace`).
+
+## Updating
+
+Replace `dinput8.dll` with the new one. Your `kufmod.yml` is kept; settings added in a new
+version use their default values until you add them (the new default file is in
+[`Release`](Release), and every setting is listed below).
 
 ## Settings
 
@@ -48,15 +64,22 @@ Changes apply the next time the game starts.
 | `lan-trace` | write network and computer-player details for bug reports |
 | `multiplayer-computers` | computer players in multiplayer rooms (see below) |
 | `locus-new-account` | the answer to Locus's "start new account?" question: `no` (default), `yes` or `ask` |
+| `menu-fps` | frames per second of the animated menus (60; `0` = the game's own 20) |
+| `single-player-turn` | order delay in single player, in 30 ms ticks (1; the game's own: 6) |
+| `network-speed` | ticks for the three Network Speed choices (3, 6, 10; the game's own: 6, 10, 14) |
+| `network-speed-start` | the Network Speed a multiplayer match starts with: `low` (default), `high` or `extra` |
+| `unit-avoidance` | units walk around blockers instead of waiting |
+| `target-priority` | units prefer fighters, keep and chase their target, spread around buildings |
+| `campaign-timer` | the match clock in campaign missions |
+| `random-maps` | "Random" maps pick from every map with the right number of players |
+| `melee-default` | maps start on Melee unless their name contains "(Custom)" |
+| `perf-trace` | write frame times, order delays and unit movement details for bug reports (off) |
 
 ## Multiplayer: Locus Online or LAN
 
 The Steam version plays multiplayer through **Locus Online** (the Locus GameChain lobby). The mod
 adds **LAN play** next to it, so you can also play over a home network or a virtual LAN such as
 **Radmin VPN** or **Hamachi**, the way the original CD version did.
-
-> **LAN play is in testing.** It works in the mod's source (see *Building from source*) and will be
-> in the next download in [`Release`](Release); the current download does not have it yet.
 
 With `lan-play: true` in `kufmod.yml`, **Multi Play** asks which one you want.
 
@@ -68,14 +91,14 @@ With `lan-play: true` in `kufmod.yml`, **Multi Play** asks which one you want.
    6–8 minutes), then create or join a room.
 
 Needs an internet connection and the LocusGameChain program that comes with the game. Players
-without the mod can join you, **but only if the match rules are the same**: set `standard-mode`
-and `empty-nodes` to `false`, or every player needs the mod with the same settings.
+without the mod can join you, **but only if the match rules are the same** (see *Keeping matches
+in sync* below); otherwise every player needs the mod with the same settings.
 
 ### LAN (Radmin VPN, Hamachi or a real LAN)
 
 1. Everyone joins the same network: the same Radmin VPN or Hamachi network, or the same home LAN.
-2. Everyone installs the mod and sets `lan-play: true` in `kufmod.yml`, with the same
-   `standard-mode` and `empty-nodes` settings.
+2. Everyone installs the same version of the mod and sets `lan-play: true` in `kufmod.yml`, with
+   the same gameplay settings (see *Keeping matches in sync*).
 3. Multi Play → **LAN** → choose a profile → **OK**. No password and no Locus account are needed;
    the lobby says **LAN play**.
 4. One player creates a room; the others see it in the room list and join.
@@ -105,16 +128,26 @@ Picking OPEN or CLOSE again removes the computer. The computers play the game's 
 after the human players, with an automatic color. A match goes on while an enemy computer is
 still playing, even if all other people have left; a computer with nothing left is out of the game.
 
-> **In testing.** Every player in the room needs this version of the mod. The computer runs on every
-> player's PC at the same time; `kufmod.log` writes a `sync check` line now and then, and these
-> lines must be the same on every PC. Not tested yet: a match between two real PCs, and winning
-> by destroying a computer.
+Every player in the room needs the same version of the mod. The computer runs on every player's PC
+at the same time; `kufmod.log` writes a `sync check` line now and then, and these lines must be the
+same on every PC.
 
 ### Keeping matches in sync
 
-The economy changes alter the game's rules. Everyone in a match needs the same `standard-mode`
-and `empty-nodes` settings, or the match will go out of sync. With both set to `false`, only
-interface features remain.
+Several features change the game's rules. Everyone in a match needs **the same mod version** and
+the same values for these settings, or the match goes out of sync:
+
+`standard-mode`, `empty-nodes`, `network-speed`, `network-speed-start`, `unit-avoidance`,
+`target-priority`, `multiplayer-computers`.
+
+The easiest way: everyone uses the `kufmod.yml` from the [`Release`](Release) folder and only
+changes hotkeys and LAN addresses. With `standard-mode`, `empty-nodes`, `unit-avoidance` and
+`target-priority` set to `false`, you can also play with people who don't have the mod (Locus
+Online only; their Network Speed choices are then different from yours, so also set
+`network-speed: 6, 10, 14` and `network-speed-start: high`).
+
+**If a match goes out of sync:** compare the `sync check` lines in everyone's `kufmod.log` (with
+computer players), and check that everyone has the same settings.
 
 ## Compatibility
 
@@ -144,6 +177,8 @@ switches itself off, and `kufmod.log` says which.
 - `docs/LAN.md` — how Steam multiplayer and Locus work, and how LAN play replaces Locus.
 - `docs/AI-MP.md` — how the computer players work in multiplayer (the game switches its AI off in
   network games in several places; what the mod changes and how it was found).
+- `docs/REVERSING.md` also covers frame pacing, order delay, unit movement, combat targeting, maps
+  and player colors (2.0).
 
 ## License
 

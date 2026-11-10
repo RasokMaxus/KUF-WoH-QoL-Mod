@@ -33,10 +33,12 @@ grid keys.
 
 ---
 
-## Next version (in testing)
+## Version 2.0
 
-These changes are in the mod's source and will be in the next download in `Release`; the current
-1.0 download does not have them yet. Every player in a multiplayer match needs the same version.
+Every player in a multiplayer match needs version 2.0 with the same gameplay settings (see
+*Keeping matches in sync* in the README). LAN play and computer players in multiplayer are new and
+have been tested with two copies of the game on one PC; matches between separate PCs are the next
+test.
 
 ### Faster unit response
 

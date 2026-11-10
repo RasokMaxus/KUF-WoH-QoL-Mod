@@ -14,11 +14,14 @@ standard-mode: true
 # (34 gold, 20 iron, 7 mana) instead of nothing.
 empty-nodes: true
 
-# LAN play (test version)
-# Multi Play then asks "Locus Online" or "LAN". LAN plays over your network or a virtual
-# LAN (Radmin VPN, Hamachi): no Locus account, password or gamechain needed. Every player
-# needs the mod with lan-play on. Locus Online works as before.
-lan-play: false
+# Multiplayer: LAN (and Locus Online if you turn it on)
+# LAN plays over your network or a virtual LAN (Radmin VPN, Hamachi): no Locus account,
+# password or gamechain needed. Every player needs the mod with lan-play on.
+# lan-play: false = Locus Online only, as in the game without the mod.
+lan-play: true
+# Locus Online (the Steam version's online lobby). false (default) = LAN only: Multi Play goes
+# straight to LAN and Locus never asks anything. true = Multi Play asks "LAN" or "Locus Online".
+locus-online: false
 # The address other players connect to. auto = Radmin VPN or Hamachi if present, else your
 # LAN. Or write your address, e.g. lan-ip: 26.1.2.3
 lan-ip: auto
@@ -27,6 +30,15 @@ lan-ip: auto
 lan-peers:
 # Write network details to kufmod.log and every LAN packet to netdump.txt (for bug reports).
 lan-trace: false
+# Only with locus-online: true (or lan-play: false):
+# Locus Online sometimes asks at startup: "The Network has been restarted. Multiplay is no
+# longer possible with existing account. Would you like to start new account?"
+# Locus Online needs Yes: with No, Locus multiplayer stays unusable ("You are not participating
+# the LocusGameChain Network") until you start a new account. Yes only replaces the Locus
+# account files (LocusGameChain\test_db and hostAccount.keystore); your multi\ profiles stay
+# and LAN play is not affected. yes = always answer Yes (default), ask = show the question,
+# no = always answer No.
+locus-new-account: yes
 
 # Menu frame rate
 # The animated menus (main menu, Single/Multi Play choice) are drawn this many times per
@@ -39,9 +51,9 @@ menu-fps: 60
 # end of the current turn and one more turn. Shorter turns = units react sooner.
 # Single player turn in ticks (the game's own: 6, about 0.25 s per order; 1 = about 0.05 s).
 single-player-turn: 1
-# Multiplayer: ticks for the three Network Speed choices (the game's own: 6, 10, 14). The
-# default choice is the middle one. Too short for a slow connection makes the game pause
-# briefly while it waits. Every player needs the same values.
+# Multiplayer: ticks for the three Network Speed choices Low, High and Extra high (the game's
+# own: 6, 10, 14). Too short for a slow connection makes the game pause briefly while it
+# waits. Every player needs the same values.
 network-speed: 3, 6, 10
 # The Network Speed a multiplayer match starts with: low, high or extra (the game's own: high).
 # It can still be changed during the match in the game's options.
@@ -70,12 +82,6 @@ random-maps: true
 # Maps start on Melee unless their name contains "(Custom)" (some official maps, like Simple2
 # and Open Field, started on Use Map Settings, which gives a black screen). false = as before.
 melee-default: true
-
-# Locus Online sometimes asks at startup: "The Network has been restarted ... start new
-# account?" Yes makes a new Locus account (deletes LocusGameChain\test_db and
-# hostAccount.keystore; your multi\ profiles stay). no = always answer No without asking,
-# yes = always Yes, ask = show the question.
-locus-new-account: no
 
 # Grid hotkeys
 # Press the buttons of the 3x3 grid (buildings to construct, units to train) with these keys.

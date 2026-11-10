@@ -212,11 +212,14 @@ static const char* DEFAULT_CONFIG =
     "# (34 gold, 20 iron, 7 mana) instead of nothing.\n"
     "empty-nodes: true\n"
     "\n"
-    "# LAN play (test version)\n"
-    "# Multi Play then asks \"Locus Online\" or \"LAN\". LAN plays over your network or a virtual\n"
-    "# LAN (Radmin VPN, Hamachi): no Locus account, password or gamechain needed. Every player\n"
-    "# needs the mod with lan-play on. Locus Online works as before.\n"
-    "lan-play: false\n"
+    "# Multiplayer: LAN (and Locus Online if you turn it on)\n"
+    "# LAN plays over your network or a virtual LAN (Radmin VPN, Hamachi): no Locus account,\n"
+    "# password or gamechain needed. Every player needs the mod with lan-play on.\n"
+    "# lan-play: false = Locus Online only, as in the game without the mod.\n"
+    "lan-play: true\n"
+    "# Locus Online (the Steam version's online lobby). false (default) = LAN only: Multi Play goes\n"
+    "# straight to LAN and Locus never asks anything. true = Multi Play asks \"LAN\" or \"Locus Online\".\n"
+    "locus-online: false\n"
     "# The address other players connect to. auto = Radmin VPN or Hamachi if present, else your\n"
     "# LAN. Or write your address, e.g. lan-ip: 26.1.2.3\n"
     "lan-ip: auto\n"
@@ -225,6 +228,15 @@ static const char* DEFAULT_CONFIG =
     "lan-peers:\n"
     "# Write network details to kufmod.log and every LAN packet to netdump.txt (for bug reports).\n"
     "lan-trace: false\n"
+    "# Only with locus-online: true (or lan-play: false):\n"
+    "# Locus Online sometimes asks at startup: \"The Network has been restarted. Multiplay is no\n"
+    "# longer possible with existing account. Would you like to start new account?\"\n"
+    "# Locus Online needs Yes: with No, Locus multiplayer stays unusable (\"You are not participating\n"
+    "# the LocusGameChain Network\") until you start a new account. Yes only replaces the Locus\n"
+    "# account files (LocusGameChain\\test_db and hostAccount.keystore); your multi\\ profiles stay\n"
+    "# and LAN play is not affected. yes = always answer Yes (default), ask = show the question,\n"
+    "# no = always answer No.\n"
+    "locus-new-account: yes\n"
     "\n"
     "# Menu frame rate\n"
     "# The animated menus (main menu, Single/Multi Play choice) are drawn this many times per\n"
@@ -237,9 +249,9 @@ static const char* DEFAULT_CONFIG =
     "# end of the current turn and one more turn. Shorter turns = units react sooner.\n"
     "# Single player turn in ticks (the game's own: 6, about 0.25 s per order; 1 = about 0.05 s).\n"
     "single-player-turn: 1\n"
-    "# Multiplayer: ticks for the three Network Speed choices (the game's own: 6, 10, 14). The\n"
-    "# default choice is the middle one. Too short for a slow connection makes the game pause\n"
-    "# briefly while it waits. Every player needs the same values.\n"
+    "# Multiplayer: ticks for the three Network Speed choices Low, High and Extra high (the game's\n"
+    "# own: 6, 10, 14). Too short for a slow connection makes the game pause briefly while it\n"
+    "# waits. Every player needs the same values.\n"
     "network-speed: 3, 6, 10\n"
     "# The Network Speed a multiplayer match starts with: low, high or extra (the game's own: high).\n"
     "# It can still be changed during the match in the game's options.\n"
@@ -268,12 +280,6 @@ static const char* DEFAULT_CONFIG =
     "# Maps start on Melee unless their name contains \"(Custom)\" (some official maps, like Simple2\n"
     "# and Open Field, started on Use Map Settings, which gives a black screen). false = as before.\n"
     "melee-default: true\n"
-    "\n"
-    "# Locus Online sometimes asks at startup: \"The Network has been restarted ... start new\n"
-    "# account?\" Yes makes a new Locus account (deletes LocusGameChain\\test_db and\n"
-    "# hostAccount.keystore; your multi\\ profiles stay). no = always answer No without asking,\n"
-    "# yes = always Yes, ask = show the question.\n"
-    "locus-new-account: no\n"
     "\n"
     "# Grid hotkeys\n"
     "# Press the buttons of the 3x3 grid (buildings to construct, units to train) with these keys.\n"
@@ -354,9 +360,13 @@ static void Normalize(const char* in, char* out, size_t size) {
 // ---------------------------------------------------------------- Locus "new account" question
 // At startup Locus sometimes asks "The Network has been restarted ... start new account?"
 // (0x57CA70, MessageBoxA at 0x57CC39; 6 Yes = new account, 7 No = keep). Setting locus-new-account.
-static int g_locusNewAccount = 0;  // 0 no, 1 yes, 2 ask
+static int g_locusNewAccount = 1;  // 0 no, 1 yes (default), 2 ask
 
 static int WINAPI LocusQuestion(HWND owner, const char* text, const char* caption, UINT type) {
+    if (g_lanPlay && !g_locusOnline) {  // LAN only: Locus is not used, so no question and no change
+        Log("locus: answered No to the new-account question (locus-online: false)");
+        return IDNO;
+    }
     if (g_locusNewAccount == 2) return MessageBoxA(owner, text, caption, type);
     Log("locus: answered %s to the new-account question (setting locus-new-account)", g_locusNewAccount ? "Yes" : "No");
     return g_locusNewAccount ? IDYES : IDNO;
@@ -435,6 +445,7 @@ static void LoadConfig() {
             else if (!strcmp(key, "standard-mode")) g_standardMode = IsTrue(value);
             else if (!strcmp(key, "empty-nodes")) g_emptyNodes = IsTrue(value);
             else if (!strcmp(key, "lan-play")) g_lanPlay = IsTrue(value);
+            else if (!strcmp(key, "locus-online")) g_locusOnline = IsTrue(value);
             else if (!strcmp(key, "lan-ip")) strncpy_s(g_lanIp, value, _TRUNCATE);
             else if (!strcmp(key, "lan-peers")) strncpy_s(g_lanPeers, value, _TRUNCATE);
             else if (!strcmp(key, "lan-trace")) g_lanTrace = IsTrue(value);
@@ -1350,7 +1361,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
         FILE* f = NULL;
         if (!fopen_s(&f, g_logPath, "w") && f) fclose(f);
     }
-    Log("kufmod 2.0 loaded, base %p", (void*)(g_slide + 0x400000));
+    Log("kufmod 2.0.1 loaded, base %p", (void*)(g_slide + 0x400000));
     LoadConfig();
     InstallEconomy();
     InstallLan();

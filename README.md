@@ -20,7 +20,7 @@ A gameplay, interface, and quality of life mod for **Kingdom Under Fire: A War o
 - **Smooth main menu:** drawn at 60 frames per second instead of 20.
 - Everything can be switched on or off, and every hotkey changed, in one settings file.
 
-**Current version: 2.0.** See [PATCH_NOTES.md](PATCH_NOTES.md) for the full list of changes and
+**Current version: 2.0.1.** See [PATCH_NOTES.md](PATCH_NOTES.md) for the full list of changes and
 how to change your hotkeys.
 
 ## Install
@@ -58,11 +58,12 @@ Changes apply the next time the game starts.
 | `build-button` | the Build button for workers |
 | `multiplayer-colors` | the color swatches in multiplayer rooms |
 | `command-hotkeys` | change the letter of any command (names in `kufmod_commands.txt`) |
-| `lan-play` | adds LAN to Multi Play (see below) |
+| `lan-play` | Multi Play offers LAN next to Locus Online (on; `false` = Locus Online only) |
+| `locus-online` | `false` (default) = LAN only: Multi Play goes straight to LAN and Locus never asks anything; `true` = Multi Play offers LAN and Locus Online |
 | `lan-ip`, `lan-peers` | LAN: your address, and extra addresses to announce rooms to |
 | `lan-trace` | write network and computer-player details for bug reports |
 | `multiplayer-computers` | computer players in multiplayer rooms (see below) |
-| `locus-new-account` | the answer to Locus's "start new account?" question: `no` (default), `yes` or `ask` |
+| `locus-new-account` | the answer to Locus's "start new account?" question: `yes` (default, needed for Locus Online), `ask` or `no` |
 | `menu-fps` | frames per second of the animated menus (60; `0` = the game's own 20) |
 | `single-player-turn` | order delay in single player, in 30 ms ticks (1; the game's own: 6) |
 | `network-speed` | ticks for the three Network Speed choices (3, 6, 10; the game's own: 6, 10, 14) |
@@ -80,14 +81,22 @@ The Steam version plays multiplayer through **Locus Online** (the Locus GameChai
 adds **LAN play** next to it, so you can also play over a home network or a virtual LAN such as
 **Radmin VPN** or **Hamachi**, the way the original CD version did.
 
-With `lan-play: true` in `kufmod.yml`, **Multi Play** asks which one you want.
+By default the mod is **LAN only**: Multi Play goes straight to LAN, and Locus's "start new
+account?" question never appears. To use Locus Online, set `locus-online: true` in `kufmod.yml`;
+Multi Play then asks which one you want. With `lan-play: false`, Multi Play goes straight to Locus
+Online, as in the game without the mod.
 
 ### Locus Online (as before)
 
-1. Multi Play → **Locus Online**.
+1. Set `locus-online: true` in `kufmod.yml`, then Multi Play → **Locus Online**.
 2. Choose your profile in the Registry and enter its password (your Locus account).
 3. Wait until the lobby says **Participating in GameChain** (the first time on a PC this can take
    6–8 minutes), then create or join a room.
+
+Locus sometimes resets its network and then asks at startup to *start a new account*. Locus
+Online only works again after **Yes**, so the mod answers Yes for you (`locus-new-account: yes`).
+Yes only replaces Locus's own account files; your profiles in the `multi` folder stay, and LAN
+play is not affected.
 
 Needs an internet connection and the LocusGameChain program that comes with the game. Players
 without the mod can join you, **but only if the match rules are the same** (see *Keeping matches
@@ -96,10 +105,10 @@ in sync* below); otherwise every player needs the mod with the same settings.
 ### LAN (Radmin VPN, Hamachi or a real LAN)
 
 1. Everyone joins the same network: the same Radmin VPN or Hamachi network, or the same home LAN.
-2. Everyone installs the same version of the mod and sets `lan-play: true` in `kufmod.yml`, with
-   the same gameplay settings (see *Keeping matches in sync*).
-3. Multi Play → **LAN** → choose a profile → **OK**. No password and no Locus account are needed;
-   the lobby says **LAN play**.
+2. Everyone installs the same version of the mod, with `lan-play: true` (the default) and the same
+   gameplay settings (see *Keeping matches in sync*).
+3. Multi Play (→ **LAN** if you turned Locus Online on) → choose a profile → **OK**. No password
+   and no Locus account are needed; the lobby says **LAN play**.
 4. One player creates a room; the others see it in the room list and join.
 
 The mod picks your Radmin/Hamachi address by itself. If it picks the wrong one, set it with
@@ -110,7 +119,8 @@ appear in Locus Online.
 
 ### Switching
 
-You can switch every time you click Multi Play. Your profiles (the `multi` folder) work in both.
+With `locus-online: true` you can switch every time you click Multi Play. Your profiles (the
+`multi` folder) work in both.
 To go back to Locus only, set `lan-play: false`.
 
 ### Computer players
@@ -163,6 +173,11 @@ switches itself off, and `kufmod.log` says which.
   `KingdomUnderFire.exe`, and look at `kufmod.log` there.
 - **A feature is missing:** `kufmod.log` lists each feature as on, off (by your settings), or left
   off because the game code was different.
+- **"You are not participating the LocusGameChain Network, can't play multplay":** Locus Online is
+  not connected (needs `locus-online: true`). Wait for the lobby status *Participating in
+  GameChain*. If Locus asked to start a
+  new account and it was answered No (`locus-new-account: no`), set `locus-new-account: yes` (or
+  `ask` and answer Yes) and restart the game. LAN play does not need Locus.
 
 ## Building from source
 

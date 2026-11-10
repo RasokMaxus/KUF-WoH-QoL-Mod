@@ -24,6 +24,7 @@ bool Patch(uintptr_t va, const void* expected, const void* replacement, size_t l
 
 // Settings from kufmod.yml that other files use.
 extern bool g_standardMode, g_emptyNodes, g_buildButton, g_lanPlay;
+extern bool g_locusOnline;     // locus-online: false = LAN only (lan.cpp)
 extern char g_lanIp[64];      // lan-ip: "auto" or an address
 extern char g_lanPeers[256];  // lan-peers: extra addresses for room announcements
 extern bool g_lanTrace;       // lan-trace: network log + netdump.txt

@@ -21,7 +21,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-bool g_lanPlay = false;
+bool g_lanPlay = true;
+bool g_locusOnline = false;
 bool g_lanTrace = false;
 char g_lanIp[64] = "auto";
 char g_lanPeers[256] = "";  // lan-peers: addresses to send room announcements to, besides broadcast
@@ -866,12 +867,18 @@ __declspec(naked) static void StateHook() {  // replaces push ebp / mov ebp,esp 
 static uintptr_t g_setState, g_handlerExit, g_locusChecks, g_lobbyResume, g_locusPtr;
 static BYTE g_locusChosen;  // set by Locus Online until its checks reach command 0xBBA
 
+static uintptr_t g_lobbyHookAddr;  // LobbyHook below
+
 __declspec(naked) static void MultiplayerHook() {  // at 0x590AFC: show the chooser (state 0x19)
     __asm {
+        cmp byte ptr [g_locusOnline], 0
+        je lanOnly
         push 0x19
         mov ecx, edi
         call dword ptr [g_setState]
         jmp dword ptr [g_handlerExit]
+    lanOnly:                              // locus-online: false: straight to LAN, as if LAN was clicked
+        jmp dword ptr [g_lobbyHookAddr]   // (command 0xBBA's case in the same handler: edi = frame)
     }
 }
 
@@ -914,6 +921,7 @@ static bool InstallChooser() {
     g_handlerExit = 0x591A8E + g_slide;
     g_locusChecks = 0x590B01 + g_slide;
     g_locusPtr = 0xBED200 + g_slide;
+    g_lobbyHookAddr = (uintptr_t)LobbyHook;
     uintptr_t unused;
     Hook(0x590AFC, checks, 5, MultiplayerHook, &unused);
     Hook(0x59120D, wargate, 10, LocusOnlineHook, &unused);
@@ -985,6 +993,7 @@ void InstallLan() {
     InstallNetTrace();
     HANDLE t = CreateThread(NULL, 0, LanThread, NULL, 0, NULL);
     if (t) CloseHandle(t);
-    Log("lan: Multiplayer shows Locus Online / LAN, address setting \"%s\", extra peers \"%s\" (test build)",
-        g_lanIp, g_lanPeers);
+    Log("lan: Multiplayer %s, address setting \"%s\", extra peers \"%s\"",
+        g_locusOnline ? "shows Locus Online / LAN" : "goes straight to LAN (locus-online: false)", g_lanIp,
+        g_lanPeers);
 }

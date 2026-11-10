@@ -33,6 +33,20 @@ grid keys.
 
 ---
 
+## Version 2.0.1
+
+- **LAN only by default:** Multi Play goes straight to LAN, with no Locus choice and no Locus
+  questions (`lan-play: true`, `locus-online: false`). To use Locus Online, set
+  `locus-online: true`; Multi Play then asks "LAN" or "Locus Online".
+- **Locus Online keeps working after a Locus network reset:** when Locus Online is on, Locus's
+  "start new account?" question is answered **Yes** by default (`locus-new-account: yes`). With No,
+  Locus Online refused to play ("You are not participating the LocusGameChain Network"). Yes only
+  replaces Locus's own account files; your `multi` profiles stay.
+- `kufmod.yml`: corrected the Network Speed explanation (matches start on Low, see
+  `network-speed-start`).
+- Settings missing from an existing `kufmod.yml` use their defaults, so an older file gets these
+  new defaults too unless it sets `lan-play`, `locus-online` or `locus-new-account` itself.
+
 ## Version 2.0
 
 Every player in a multiplayer match needs version 2.0 with the same gameplay settings (see

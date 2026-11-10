@@ -10,6 +10,8 @@
 // "update" = time inside 0x593F80, "gap" = time from the end of one update to the start of the
 // next (message handling + MFC), "lag" = how old a mouse message is when the game takes it.
 #include "kufmod.h"
+#include <stdarg.h>
+#include <share.h>
 #include <stdio.h>
 
 bool g_perfTrace = false;
@@ -152,10 +154,116 @@ static void InstallOrderTrace() {
     Log(ok ? "perf order trace on" : "perf order trace: unexpected game code (partly off)");
 }
 
+// ---------------------------------------------------------------- path trace
+// Unit movement state machine 0x47E540 (thiscall unit, 2 args, ret 8), state word unit+0x31A:
+//  0 start, 1 set up, 3 turn + try a step, 4 walk, 9 ?, 10 arrived (stop), 11 blocked (0x47F760:
+//  step result 0 ok -> 3, 1/2 -> 14, 3 = a unit is in the way: yield -> 14 with "avoid units"
+//  flag +0x271, else wait, counter +0x360 up to 50), 12 give up, 13 wait then new path 0x47EE00
+//  (retry counter +0x362; "arrived" when within 0x20 of the target, or 0x80 after 3 retries),
+//  14 new path now. Position +0x18/+0x1C, target +0x178/+0x17C (or the path's end cell).
+// Every state change of the local player's units (except 3 <-> 4) goes to pathtrace.txt.
+static FILE* g_pathFile;
+static BYTE* g_moveTramp;
+typedef int(__thiscall* MoveFn)(void* unit, int a, int b);
+
+static void PathLog(const char* fmt, ...) {
+    if (!g_pathFile) {
+        char path[MAX_PATH];
+        if (g_instance > 1) sprintf_s(path, "%spathtrace%d.txt", g_dir, g_instance);
+        else sprintf_s(path, "%spathtrace.txt", g_dir);
+        g_pathFile = _fsopen(path, "w", _SH_DENYNO);  // readable while the game runs
+        if (!g_pathFile) return;
+    }
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(g_pathFile, fmt, ap);
+    va_end(ap);
+    fputc('\n', g_pathFile);
+    fflush(g_pathFile);
+}
+
+static int __fastcall MoveStep(BYTE* unit, void*, int a, int b) {
+    int16_t before = *(int16_t*)(unit + 0x31A);
+    uint16_t waitBefore = *(uint16_t*)(unit + 0x360);
+    int r = ((MoveFn)(void*)g_moveTramp)(unit, a, b);
+    int16_t after = *(int16_t*)(unit + 0x31A);
+    uint16_t wait = *(uint16_t*)(unit + 0x360);
+    bool waitMark = wait != waitBefore && (wait == 10 || wait == 25 || wait == 50);
+    if (before == after && !waitMark) return r;
+    if ((before == 3 && after == 4) || (before == 4 && after == 3)) return r;
+    uintptr_t game = Game<uintptr_t>(0xB8282C);
+    if (!game || *(int16_t*)(unit + 8) != *(int*)(game + 0x664)) return r;  // owner is a word
+    int x = *(int*)(unit + 0x18), y = *(int*)(unit + 0x1C), tx, ty;
+    BYTE* path = *(BYTE**)(unit + 0x168);
+    if (path && path[0x16]) {
+        tx = (*(int*)(path + 0xC) << 4) + 0x88;
+        ty = (*(int*)(path + 0x10) << 4) + 0x88;
+    } else {
+        tx = *(int*)(unit + 0x178);
+        ty = *(int*)(unit + 0x17C);
+    }
+    PathLog("%8lu unit %p id %d: state %d -> %d (ret %d) pos %d,%d target %d,%d (dx %d dy %d) "
+            "wait %u retries %u avoid %d",
+            GetTickCount(), unit, *(int16_t*)(unit + 0xA), before, after, r, x, y, tx, ty, tx - x,
+            ty - y, wait, *(uint16_t*)(unit + 0x362), unit[0x271]);
+    if (before == 0) {  // a new destination: what is the unit doing, and at whom?
+        BYTE* t = *(BYTE**)(unit + 0x11C);
+        if (t)
+            PathLog("         action %d target obj %p type %d owner %d pos %d,%d state %d",
+                    *(int16_t*)(unit + 0x6C), t, *(int16_t*)(t + 4), *(int16_t*)(t + 8),
+                    *(int*)(t + 0x18), *(int*)(t + 0x1C), *(int16_t*)(t + 0x31A));
+        else
+            PathLog("         action %d no target obj", *(int16_t*)(unit + 0x6C));
+    }
+    return r;
+}
+
+// Called by pathing.cpp's hook at 0x47F7F8 ("a unit is in the way") when perf-trace is on.
+// Logged when the blocker changes or every 16th time.
+void NoteBlock(BYTE* unit, int idx, bool yieldNow) {
+    uintptr_t g_objTable = 0xB870C0 + g_slide;
+    uintptr_t game = Game<uintptr_t>(0xB8282C);
+    if (!game || *(int16_t*)(unit + 8) != *(int*)(game + 0x664)) return;
+    static BYTE* lastUnit;
+    static int lastIdx, repeats;
+    if (unit == lastUnit && idx == lastIdx && ++repeats % 16) return;
+    if (unit != lastUnit || idx != lastIdx) repeats = 0;
+    lastUnit = unit;
+    lastIdx = idx;
+    uintptr_t world = *(uintptr_t*)g_objTable;
+    BYTE* b = world ? *(BYTE**)(world + 0x2C38 + idx * 4) : NULL;
+    if (!b) {
+        PathLog("%8lu unit %p blocked by object %d (none)", GetTickCount(), unit, idx);
+        return;
+    }
+    PathLog("%8lu unit %p (face %d, wait %u) blocked by %p type %d owner %d state %d face %d pos %d,%d"
+            " (x%d)%s",
+            GetTickCount(), unit, *(int*)(unit + 0x298), *(uint16_t*)(unit + 0x360), b,
+            *(int16_t*)(b + 4), *(int16_t*)(b + 8), *(int16_t*)(b + 0x31A), *(int*)(b + 0x298),
+            *(int*)(b + 0x18), *(int*)(b + 0x1C), repeats + 1, yieldNow ? " -> go around" : "");
+}
+
+static void InstallPathTrace() {
+    static const BYTE expected[6] = {0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x18};
+    BYTE* fn = (BYTE*)(0x47E540 + g_slide);
+    if (memcmp(fn, expected, 6)) {
+        Log("perf path trace: unexpected game code at 0x47E540");
+        return;
+    }
+    g_moveTramp = (BYTE*)VirtualAlloc(NULL, 16, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    if (!g_moveTramp) return;
+    memcpy(g_moveTramp, expected, 6);  // the replaced prologue, then jmp 0x47E546
+    g_moveTramp[6] = 0xE9;
+    *(int32_t*)(g_moveTramp + 7) = (int32_t)((uintptr_t)fn + 6 - ((uintptr_t)g_moveTramp + 11));
+    uintptr_t unused;
+    if (Hook(0x47E540, expected, 6, (void*)MoveStep, &unused)) Log("perf path trace on");
+}
+
 void InstallPerf() {
     if (!g_perfTrace) return;
     QueryPerformanceFrequency(&g_freq);
     InstallOrderTrace();
+    InstallPathTrace();
     g_update = (StateUpdateFn)(0x593F80 + g_slide);
     // call 0x593F80 at 0x4FEE4B (rel32 = 0x593F80 - 0x4FEE50 = 0x95130)
     static const BYTE expected[5] = {0xE8, 0x30, 0x51, 0x09, 0x00};

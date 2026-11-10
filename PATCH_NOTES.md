@@ -50,6 +50,16 @@ These changes are in the mod's source and will be in the next download in `Relea
   options then. Settings: `network-speed: 3, 6, 10` and `network-speed-start: low` (low, high or
   extra). Every player needs the same values.
 
+### Units walk around blockers
+
+- A unit blocked by another unit waited up to 1.5 s, even behind a unit that was not moving at all
+  (for example one stuck behind a chicken), so whole columns stood still. Now a unit only waits
+  behind one of your own units that is walking; behind anything else it walks around at once.
+- When a unit asked for a new path after being blocked, the game often made one that ignored other
+  units, so it ran into the same crowd again every tick (units twitching and bumping around a
+  building or a fight, reinforcements entering in single file). These new paths now go around
+  units. Setting: `unit-avoidance: true` (`false` = as before). Every player needs the same value.
+
 ### Smooth main menu
 
 - The main menu and the other animated menus were drawn only 20 times per second, so the mouse

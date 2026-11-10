@@ -31,6 +31,9 @@ extern bool g_lanTrace;       // lan-trace: network log + netdump.txt
 // perf.cpp (perf-trace diagnostic)
 extern bool g_perfTrace;
 void InstallPerf();
+// pathing.cpp
+extern bool g_unitAvoidance;
+void InstallPathing();
 // turns.cpp
 extern int g_spTurn, g_netTurns[3], g_netStart;
 void InstallTurns();

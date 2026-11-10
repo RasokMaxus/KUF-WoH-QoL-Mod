@@ -96,17 +96,19 @@ extern "C" int __cdecl PickColor(int slotOffset, const int* colors, const int* p
     if (!g_mpColors && NetworkSkirmish()) return colors[s];
     if (!SinglePlayerSkirmish() && !NetworkSkirmish()) return colors[s];
     const int* choice = SinglePlayerSkirmish() ? g_spChoice : g_mpChoice;
-    if (s == 0) {  // first slot: plan every player at once
+    int first = 0;  // the first start slot with a player (slot 0 can be empty)
+    while (first < 10 && players[first] < 0) first++;
+    if (s == first) {  // first occupied slot: plan every player at once
         bool used[NUM_COLORS] = {};
         for (int i = 0; i < 11; i++) {
             int p = players[i];
-            if (p >= 0 && p < NUM_SLOTS && choice[p] >= 0) used[choice[p]] = true;
+            if (p >= 0 && p < NUM_SLOTS && p < g_aiFirst && choice[p] >= 0) used[choice[p]] = true;
         }
         for (int i = 0; i < 11; i++) {
             int p = players[i], c = colors[i];
             g_plan[i] = c;
             if (p < 0 || p >= NUM_SLOTS) continue;                  // empty slot or neutral player
-            if (choice[p] >= 0) { g_plan[i] = choice[p]; continue; }
+            if (p < g_aiFirst && choice[p] >= 0) { g_plan[i] = choice[p]; continue; }  // computers: automatic
             if (c >= 0 && c < NUM_COLORS && !used[c]) { used[c] = true; continue; }
             g_plan[i] = -2;                                        // automatic, but color is taken
         }
@@ -224,6 +226,12 @@ static const char* DEFAULT_CONFIG =
     "# Write network details to kufmod.log and every LAN packet to netdump.txt (for bug reports).\n"
     "lan-trace: false\n"
     "\n"
+    "# Locus Online sometimes asks at startup: \"The Network has been restarted ... start new\n"
+    "# account?\" Yes makes a new Locus account (deletes LocusGameChain\\test_db and\n"
+    "# hostAccount.keystore; your multi\\ profiles stay). no = always answer No without asking,\n"
+    "# yes = always Yes, ask = show the question.\n"
+    "locus-new-account: no\n"
+    "\n"
     "# Grid hotkeys\n"
     "# Press the buttons of the 3x3 grid (buildings to construct, units to train) with these keys.\n"
     "# Each layout row is one grid row, left to right. While a 3x3 grid is showing, these keys go to\n"
@@ -247,6 +255,12 @@ static const char* DEFAULT_CONFIG =
     "# your own to choose your color (\"?\" = automatic). First come, first served; the room's host\n"
     "# keeps the list. Players without the mod see the game's usual colors.\n"
     "multiplayer-colors: true\n"
+    "\n"
+    "# Computer players in multiplayer (needs multiplayer-colors)\n"
+    "# In a multiplayer room the host can pick COMPUTER in an empty slot, then choose its race\n"
+    "# (Human, Devil, Random) and click its team button for a team (none, A ... H).\n"
+    "# Every player needs the mod with this on.\n"
+    "multiplayer-computers: true\n"
     "\n"
     "# Command hotkeys\n"
     "# Change the letter of a command button (the six ovals above the grid). Use the names listed\n"
@@ -292,6 +306,24 @@ static void Normalize(const char* in, char* out, size_t size) {
     }
     while (n && out[n - 1] == '-') n--;
     out[n] = 0;
+}
+
+// ---------------------------------------------------------------- Locus "new account" question
+// At startup Locus sometimes asks "The Network has been restarted ... start new account?"
+// (0x57CA70, MessageBoxA at 0x57CC39; 6 Yes = new account, 7 No = keep). Setting locus-new-account.
+static int g_locusNewAccount = 0;  // 0 no, 1 yes, 2 ask
+
+static int WINAPI LocusQuestion(HWND owner, const char* text, const char* caption, UINT type) {
+    if (g_locusNewAccount == 2) return MessageBoxA(owner, text, caption, type);
+    Log("locus: answered %s to the new-account question (setting locus-new-account)", g_locusNewAccount ? "Yes" : "No");
+    return g_locusNewAccount ? IDYES : IDNO;
+}
+
+static bool InstallLocusQuestion() {
+    BYTE expected[6] = {0xFF, 0x15};  // call dword ptr [MessageBoxA]
+    uint32_t iat = (uint32_t)(0xA16B1C + g_slide);
+    memcpy(expected + 2, &iat, 4);
+    return HookCall(0x57CC39, expected, 6, (void*)LocusQuestion);
 }
 
 static void LoadConfig() {
@@ -341,12 +373,15 @@ static void LoadConfig() {
         if (indent == 0 && *value) {  // top-level setting
             if (!strcmp(key, "build-button")) g_buildButton = IsTrue(value);
             else if (!strcmp(key, "multiplayer-colors")) g_mpColors = IsTrue(value);
+            else if (!strcmp(key, "multiplayer-computers")) g_mpComputers = IsTrue(value);
             else if (!strcmp(key, "standard-mode")) g_standardMode = IsTrue(value);
             else if (!strcmp(key, "empty-nodes")) g_emptyNodes = IsTrue(value);
             else if (!strcmp(key, "lan-play")) g_lanPlay = IsTrue(value);
             else if (!strcmp(key, "lan-ip")) strncpy_s(g_lanIp, value, _TRUNCATE);
             else if (!strcmp(key, "lan-peers")) strncpy_s(g_lanPeers, value, _TRUNCATE);
             else if (!strcmp(key, "lan-trace")) g_lanTrace = IsTrue(value);
+            else if (!strcmp(key, "locus-new-account"))
+                g_locusNewAccount = !_stricmp(value, "yes") ? 1 : !_stricmp(value, "ask") ? 2 : 0;
             else Log("config: unknown setting \"%s\"", key);
             section[0] = sub[0] = 0;
             continue;
@@ -807,9 +842,9 @@ static NamedColor g_named[16];   // host: choices by player name
 static char g_slotName[NUM_SLOTS][36];
 static int g_hostList[NUM_SLOTS] = {-1, -1, -1, -1, -1, -1, -1, -1};  // last list from the host
 
-static bool IsHost() { return Game<uint32_t>(0xBED1FC) != 0; }  // this PC runs the room server
+bool IsHost() { return Game<uint32_t>(0xBED1FC) != 0; }  // this PC runs the room server
 static void ApplyList();
-static const char* MyName() { return (const char*)(0xBEDA40 + g_slide); }
+const char* MyName() { return (const char*)(0xBEDA40 + g_slide); }
 
 static void RoomName(int slot, char* out, size_t size) {
     *out = 0;
@@ -821,7 +856,7 @@ static void RoomName(int slot, char* out, size_t size) {
 // as the chat box's Send does (0x6E3E3A). UI thread only.
 typedef void(__thiscall* ChatFn)(void* client, int message, const char* text);
 
-static void SendRoomLine(const char* text) {
+void SendRoomLine(const char* text) {
     uintptr_t dialog = Game<uintptr_t>(0xBED22C);
     void* client = dialog ? *(void**)(dialog + 0x188) : NULL;
     if (!client) return;
@@ -892,12 +927,13 @@ extern "C" bool __cdecl OnRoomChat(const char* raw) {
     const char* sep = strstr(raw, "\n\r");
     if (!sep) return false;
     const char* text = sep + 2;
-    if (strncmp(text, COLOR_TAG, sizeof COLOR_TAG - 1)) return false;
     char sender[36] = "";
     size_t n = (size_t)(sep - raw - 1);
     if (n >= sizeof sender) n = sizeof sender - 1;
     memcpy(sender, raw + 1, n);
     sender[n] = 0;
+    if (int ai = AiRoomChat(sender, text)) return ai == 2;  // computer players (aimp.cpp)
+    if (strncmp(text, COLOR_TAG, sizeof COLOR_TAG - 1)) return false;
     const char* body = text + sizeof COLOR_TAG - 1;
     if (body[0] == 'R' && IsHost()) {
         int c = atoi(body + 1);
@@ -1064,7 +1100,7 @@ static void SyncRoom() {
         char name[36];
         RoomName(i, name, sizeof name);
         bool player = name[0] && _stricmp(name, "OPEN") && _stricmp(name, "CLOSE") && _stricmp(name, "CLOSED") &&
-                      _stricmp(name, "OBSERVER");
+                      _stricmp(name, "OBSERVER") && _stricmp(name, "COMPUTER");
         if (!player) name[0] = 0;
         if (strcmp(name, g_slotName[i])) {
             strcpy_s(g_slotName[i], name);
@@ -1075,7 +1111,11 @@ static void SyncRoom() {
         if (!g_swatch[i]) continue;
         if (player != (IsWindowVisible(g_swatch[i]) != FALSE)) ShowWindow(g_swatch[i], player ? SW_SHOWNA : SW_HIDE);
     }
-    if (namesChanged && IsHost()) HostSendList();  // someone joined, left or moved
+    AiRoomSync(g_setup);  // computer slots (aimp.cpp)
+    if (namesChanged && IsHost()) {  // someone joined, left or moved
+        HostSendList();
+        AiHostSend();
+    }
 }
 
 // A slot gets a swatch while its player box is shown and not set to "Closed" / "OPEN".
@@ -1163,6 +1203,7 @@ static LRESULT CALLBACK SetupProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         SyncSwatches();
         return 0;
     }
+    if (m == WM_COMMAND && g_room && AiRoomCommand(h, w, l, original)) return 0;  // computer slots
     if (m == WM_NCDESTROY) {
         KillTimer(h, SYNC_TIMER);
         ClosePalette();
@@ -1193,6 +1234,7 @@ static DWORD WINAPI Watcher(LPVOID) {
                 memset(g_named, 0, sizeof g_named);
                 memset(g_slotName, 0, sizeof g_slotName);
                 for (int i = 0; i < NUM_SLOTS; i++) g_mpChoice[i] = g_hostList[i] = -1;
+                AiRoomReset();
             }
             g_room = room;
             g_choice = room ? g_mpChoice : g_spChoice;
@@ -1238,6 +1280,8 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     LoadConfig();
     InstallEconomy();
     InstallLan();
+    InstallAiMp();
+    if (!InstallLocusQuestion()) Log("unexpected game code at 0x57CC39 (different game version?). Locus question unchanged.");
     if (!InstallKeyHook()) Log("unexpected game code at 0x502D19 (different game version?). Hotkeys disabled.");
     if (!InstallLabelHook()) Log("unexpected game code at 0x503F8D (different game version?). Labels unchanged.");
     if (!InstallBuildButton()) Log("unexpected game code for the grid fill (different game version?). Build button off.");

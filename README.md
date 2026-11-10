@@ -42,7 +42,9 @@ Changes apply the next time the game starts.
 | `command-hotkeys` | change the letter of any command (names in `kufmod_commands.txt`) |
 | `lan-play` | adds LAN to Multi Play (see below) |
 | `lan-ip`, `lan-peers` | LAN: your address, and extra addresses to announce rooms to |
-| `lan-trace` | LAN: write network details for bug reports |
+| `lan-trace` | write network and computer-player details for bug reports |
+| `multiplayer-computers` | computer players in multiplayer rooms (see below) |
+| `locus-new-account` | the answer to Locus's "start new account?" question: `no` (default), `yes` or `ask` |
 
 ## Multiplayer: Locus Online or LAN
 
@@ -86,6 +88,25 @@ appear in Locus Online.
 You can switch every time you click Multi Play. Your profiles (the `multi` folder) work in both.
 To go back to Locus only, set `lan-play: false`.
 
+### Computer players
+
+The room's host can add computer players, in Locus Online and LAN rooms alike:
+
+1. Open an empty slot's list (OPEN / CLOSE / OBSERVER) and pick **COMPUTER**. The slot is closed for
+   people, so nobody can join it.
+2. Choose its race in the race box (Human, Devil or Random).
+3. Click its team button to put it on a team (none, A ... H). Players and computers on the same
+   team are allies.
+
+Picking OPEN or CLOSE again removes the computer. The computers play the game's own AI and join
+after the human players, with an automatic color. A match goes on while an enemy computer is
+still playing, even if all other people have left; a computer with nothing left is out of the game.
+
+> **In testing.** Every player in the room needs this version of the mod. The computer runs on every
+> player's PC at the same time; `kufmod.log` writes a `sync check` line now and then, and these
+> lines must be the same on every PC. Not tested yet: a match between two real PCs, and winning
+> by destroying a computer.
+
 ### Keeping matches in sync
 
 The economy changes alter the game's rules. Everyone in a match needs the same `standard-mode`
@@ -114,9 +135,12 @@ switches itself off, and `kufmod.log` says which.
   with C++"). The result is `src\dinput8.dll`.
 - `tools/` — Python 3 tools: `ure.py` reads and writes the game's `.URE` images and converts them
   to PNG; `draw_hammers.py` draws the Build icons; `make_icons_data.py` encodes them into
-  `src/icons_data.h`; `res.py` lists and extracts files from the game's `.res` archives.
+  `src/icons_data.h`; `res.py` lists and extracts files from the game's `.res` archives;
+  `pyc15.py` disassembles the game's Python 1.5 AI scripts.
 - `docs/REVERSING.md` — notes on how the game works internally, with the addresses the mod uses.
 - `docs/LAN.md` — how Steam multiplayer and Locus work, and how LAN play replaces Locus.
+- `docs/AI-MP.md` — how the computer players work in multiplayer (the game switches its AI off in
+  network games in several places; what the mod changes and how it was found).
 
 ## License
 

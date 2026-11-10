@@ -32,6 +32,19 @@ extern bool g_lanTrace;       // lan-trace: network log + netdump.txt
 void InstallEconomy();
 // lan.cpp
 void InstallLan();
+// aimp.cpp
+void InstallAiMp();
+extern bool g_mpComputers;  // multiplayer-computers
+extern int g_aiFirst;       // first computer player index in the current match (99 = none)
+void AiRoomReset();
+void AiHostSend();
+int AiRoomChat(const char* sender, const char* text);  // 0 not ours, 2 hidden
+void AiRoomSync(HWND room);                            // every 200 ms in the room
+bool AiRoomCommand(HWND room, WPARAM w, LPARAM l, WNDPROC original);  // true = handled
+// kufmod.cpp (multiplayer room)
+bool IsHost();
+const char* MyName();
+void SendRoomLine(const char* text);
 // icons.cpp: builds res\misc\kufmod_icons.URE and points the game at it. Returns false if the
 // icons could not be prepared (the Build button then uses a building picture).
 bool PrepareBuildIcons(int32_t* humanIcon, int32_t* devilIcon);

@@ -261,6 +261,14 @@ static const char* DEFAULT_CONFIG =
     "# Show the match clock (top right, as in skirmish and multiplayer) in campaign missions too.\n"
     "campaign-timer: true\n"
     "\n"
+    "# Random maps\n"
+    "# The \"Random (N players)\" map choices pick from every map for that many players (the game\n"
+    "# only used six community maps, always in the same order). false = as before.\n"
+    "random-maps: true\n"
+    "# Maps start on Melee unless their name contains \"(Custom)\" (some official maps, like Simple2\n"
+    "# and Open Field, started on Use Map Settings, which gives a black screen). false = as before.\n"
+    "melee-default: true\n"
+    "\n"
     "# Locus Online sometimes asks at startup: \"The Network has been restarted ... start new\n"
     "# account?\" Yes makes a new Locus account (deletes LocusGameChain\\test_db and\n"
     "# hostAccount.keystore; your multi\\ profiles stay). no = always answer No without asking,\n"
@@ -436,6 +444,8 @@ static void LoadConfig() {
             else if (!strcmp(key, "unit-avoidance")) g_unitAvoidance = IsTrue(value);
             else if (!strcmp(key, "target-priority")) g_targetPriority = IsTrue(value);
             else if (!strcmp(key, "campaign-timer")) g_campaignTimer = IsTrue(value);
+            else if (!strcmp(key, "random-maps")) g_randomMaps = IsTrue(value);
+            else if (!strcmp(key, "melee-default")) g_meleeDefault = IsTrue(value);
             else if (!strcmp(key, "network-speed-start"))
                 g_netStart = !_stricmp(value, "high") ? 1 : !_stricmp(value, "extra") ? 2 : 0;
             else if (!strcmp(key, "network-speed")) {
@@ -1351,6 +1361,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     InstallPathing();
     InstallCombat();
     InstallCampaignTimer();
+    InstallRandomMaps();
     if (!InstallLocusQuestion()) Log("unexpected game code at 0x57CC39 (different game version?). Locus question unchanged.");
     if (!InstallKeyHook()) Log("unexpected game code at 0x502D19 (different game version?). Hotkeys disabled.");
     if (!InstallLabelHook()) Log("unexpected game code at 0x503F8D (different game version?). Labels unchanged.");

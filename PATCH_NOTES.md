@@ -50,6 +50,14 @@ These changes are in the mod's source and will be in the next download in `Relea
   options then. Settings: `network-speed: 3, 6, 10` and `network-speed-start: low` (low, high or
   extra). Every player needs the same values.
 
+### Maps
+
+- **Random maps are random:** "Random (N players)" picks from every map for that many players.
+  The game only used six community maps (official maps in the Custom folder were left out) and
+  always picked in the same order. Setting: `random-maps: true`.
+- Maps start on **Melee** unless their name contains "(Custom)"; some official maps (Simple2,
+  Open Field) started on Use Map Settings, which gives a black screen. Setting: `melee-default: true`.
+
 ### Campaign timer
 
 - Campaign missions now show the match clock at the top right, like skirmish and multiplayer.

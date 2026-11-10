@@ -10,7 +10,7 @@ A gameplay, interface, and quality of life mod for **Kingdom Under Fire: A War o
   next to your name)
 - **Computer players in multiplayer:** the room's host can add computer opponents or teammates,
   with race and team, in Locus Online and LAN rooms.
-- **LAN play** over a home network, Radmin VPN or Hamachi, next to Locus Online.
+- **LAN play** over a home network, Radmin VPN or Hamachi.
 - **Faster unit response:** orders are carried out in about 0.03 s in single player (was about
   0.25 s) and 0.1–0.15 s in multiplayer (was 0.3–0.6 s).
 - **Smarter units:** they walk around blockers instead of standing in line, prefer enemy fighters

@@ -50,6 +50,11 @@ These changes are in the mod's source and will be in the next download in `Relea
   options then. Settings: `network-speed: 3, 6, 10` and `network-speed-start: low` (low, high or
   extra). Every player needs the same values.
 
+### Campaign timer
+
+- Campaign missions now show the match clock at the top right, like skirmish and multiplayer.
+  Setting: `campaign-timer: true`.
+
 ### Target priority
 
 - Units choosing their own target used to switch every 1.8 s to whatever enemy was a little

@@ -7,7 +7,7 @@ A gameplay, interface, and quality of life mod for **Kingdom Under Fire: A War o
 - **Grid hotkeys:** Q W E / A S D / Z X C for the 3×3 grid, with the real key shown on every button.
 - **Build button** for Peasants and Gnome Slaves, with new hammer icons.
 - **Player color picker** on the skirmish setup screen, and in multiplayer rooms (click the square
-  next to your name; first come, first served).
+  next to your name)
 - **Computer players in multiplayer:** the room's host can add computer opponents or teammates,
   with race and team, in Locus Online and LAN rooms.
 - **LAN play** over a home network, Radmin VPN or Hamachi, next to Locus Online.
@@ -16,8 +16,7 @@ A gameplay, interface, and quality of life mod for **Kingdom Under Fire: A War o
 - **Smarter units:** they walk around blockers instead of standing in line, prefer enemy fighters
   over buildings, stay on their target and chase it, finish towers they attack, and spread around
   buildings instead of piling up on one side.
-- **Maps:** "Random" maps really pick from every map, maps start on Melee (no more black screens on
-  Simple2 or Open Field), and campaign missions show the match clock.
+- **Maps:** "Random" maps really pick from every map, maps start on Melee, and campaign missions show the match clock.
 - **Smooth main menu:** drawn at 60 frames per second instead of 20.
 - Everything can be switched on or off, and every hotkey changed, in one settings file.
 

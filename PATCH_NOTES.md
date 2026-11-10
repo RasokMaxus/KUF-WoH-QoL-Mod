@@ -38,6 +38,18 @@ grid keys.
 These changes are in the mod's source and will be in the next download in `Release`; the current
 1.0 download does not have them yet. Every player in a multiplayer match needs the same version.
 
+### Faster unit response
+
+- The game carries out orders in "turns" of a few ticks (1 tick = 30 ms): an order waits for the
+  end of the current turn and one more turn. Single player used 6-tick turns (an order took about
+  0.25 s); it now uses 1-tick turns (about 0.03 s). Setting: `single-player-turn: 1` (6 = as
+  before).
+- Multiplayer Network Speed choices are now 3 / 6 / 10 ticks instead of 6 / 10 / 14, and matches
+  start on the fastest one (Low): orders take about 0.1-0.15 s instead of 0.3-0.6 s. On a slow
+  connection the game pauses briefly while it waits; pick a higher Network Speed in the game's
+  options then. Settings: `network-speed: 3, 6, 10` and `network-speed-start: low` (low, high or
+  extra). Every player needs the same values.
+
 ### Smooth main menu
 
 - The main menu and the other animated menus were drawn only 20 times per second, so the mouse

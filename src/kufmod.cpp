@@ -232,6 +232,19 @@ static const char* DEFAULT_CONFIG =
     "# animations keep their normal speed. 0 = the game's own 20.\n"
     "menu-fps: 60\n"
     "\n"
+    "# Order delay\n"
+    "# The game carries out orders in turns of a few ticks (1 tick = 30 ms); an order waits for the\n"
+    "# end of the current turn and one more turn. Shorter turns = units react sooner.\n"
+    "# Single player turn in ticks (the game's own: 6, about 0.25 s per order; 1 = about 0.05 s).\n"
+    "single-player-turn: 1\n"
+    "# Multiplayer: ticks for the three Network Speed choices (the game's own: 6, 10, 14). The\n"
+    "# default choice is the middle one. Too short for a slow connection makes the game pause\n"
+    "# briefly while it waits. Every player needs the same values.\n"
+    "network-speed: 3, 6, 10\n"
+    "# The Network Speed a multiplayer match starts with: low, high or extra (the game's own: high).\n"
+    "# It can still be changed during the match in the game's options.\n"
+    "network-speed-start: low\n"
+    "\n"
     "# Locus Online sometimes asks at startup: \"The Network has been restarted ... start new\n"
     "# account?\" Yes makes a new Locus account (deletes LocusGameChain\\test_db and\n"
     "# hostAccount.keystore; your multi\\ profiles stay). no = always answer No without asking,\n"
@@ -388,6 +401,15 @@ static void LoadConfig() {
             else if (!strcmp(key, "lan-trace")) g_lanTrace = IsTrue(value);
             else if (!strcmp(key, "perf-trace")) g_perfTrace = IsTrue(value);
             else if (!strcmp(key, "menu-fps")) g_menuFps = atoi(value);
+            else if (!strcmp(key, "single-player-turn")) g_spTurn = atoi(value);
+            else if (!strcmp(key, "network-speed-start"))
+                g_netStart = !_stricmp(value, "high") ? 1 : !_stricmp(value, "extra") ? 2 : 0;
+            else if (!strcmp(key, "network-speed")) {
+                int a, b, c;
+                if (sscanf_s(value, "%d , %d , %d", &a, &b, &c) == 3) {
+                    g_netTurns[0] = a; g_netTurns[1] = b; g_netTurns[2] = c;
+                } else Log("config: network-speed needs three numbers, e.g. 3, 6, 10");
+            }
             else if (!strcmp(key, "locus-new-account"))
                 g_locusNewAccount = !_stricmp(value, "yes") ? 1 : !_stricmp(value, "ask") ? 2 : 0;
             else Log("config: unknown setting \"%s\"", key);
@@ -1291,6 +1313,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     InstallAiMp();
     InstallPerf();
     InstallMenuFps();
+    InstallTurns();
     if (!InstallLocusQuestion()) Log("unexpected game code at 0x57CC39 (different game version?). Locus question unchanged.");
     if (!InstallKeyHook()) Log("unexpected game code at 0x502D19 (different game version?). Hotkeys disabled.");
     if (!InstallLabelHook()) Log("unexpected game code at 0x503F8D (different game version?). Labels unchanged.");

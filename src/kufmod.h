@@ -31,6 +31,9 @@ extern bool g_lanTrace;       // lan-trace: network log + netdump.txt
 // perf.cpp (perf-trace diagnostic)
 extern bool g_perfTrace;
 void InstallPerf();
+// combat.cpp
+extern bool g_targetPriority;
+void InstallCombat();
 // pathing.cpp
 extern bool g_unitAvoidance;
 void InstallPathing();

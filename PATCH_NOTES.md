@@ -50,6 +50,18 @@ These changes are in the mod's source and will be in the next download in `Relea
   options then. Settings: `network-speed: 3, 6, 10` and `network-speed-start: low` (low, high or
   extra). Every player needs the same values.
 
+### Target priority
+
+- Units choosing their own target used to switch every 1.8 s to whatever enemy was a little
+  closer, and melee units let go of a target that stepped back a few steps (walking off toward the
+  attack-move point, then coming back). Now:
+  - they prefer enemy fighters, then workers and units that cannot attack, then towers, then other
+    buildings (nearest first within each);
+  - they keep their target unless something of a higher priority shows up or the target gets away;
+  - they chase a target that backs off (up to twice their search range) instead of letting go.
+- Your own attack orders are unchanged. Setting: `target-priority: true` (`false` = as before).
+  Every player needs the same value.
+
 ### Units walk around blockers
 
 - A unit blocked by another unit waited up to 1.5 s, even behind a unit that was not moving at all

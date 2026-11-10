@@ -166,7 +166,7 @@ static FILE* g_pathFile;
 static BYTE* g_moveTramp;
 typedef int(__thiscall* MoveFn)(void* unit, int a, int b);
 
-static void PathLog(const char* fmt, ...) {
+static void PathLogV(const char* fmt, va_list ap) {
     if (!g_pathFile) {
         char path[MAX_PATH];
         if (g_instance > 1) sprintf_s(path, "%spathtrace%d.txt", g_dir, g_instance);
@@ -174,12 +174,24 @@ static void PathLog(const char* fmt, ...) {
         g_pathFile = _fsopen(path, "w", _SH_DENYNO);  // readable while the game runs
         if (!g_pathFile) return;
     }
-    va_list ap;
-    va_start(ap, fmt);
     vfprintf(g_pathFile, fmt, ap);
-    va_end(ap);
     fputc('\n', g_pathFile);
     fflush(g_pathFile);
+}
+
+static void PathLog(const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    PathLogV(fmt, ap);
+    va_end(ap);
+}
+
+// For other files (combat.cpp): a line in pathtrace.txt.
+void PerfNote(const char* fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    PathLogV(fmt, ap);
+    va_end(ap);
 }
 
 static int __fastcall MoveStep(BYTE* unit, void*, int a, int b) {
@@ -207,6 +219,11 @@ static int __fastcall MoveStep(BYTE* unit, void*, int a, int b) {
             GetTickCount(), unit, *(int16_t*)(unit + 0xA), before, after, r, x, y, tx, ty, tx - x,
             ty - y, wait, *(uint16_t*)(unit + 0x362), unit[0x271]);
     if (before == 0) {  // a new destination: what is the unit doing, and at whom?
+        BYTE* at = *(BYTE**)(unit + 0x120);  // attack target
+        if (at)
+            PathLog("         attacking %p type %d kind %d owner %d pos %d,%d (attack mode %d)", at,
+                    *(int16_t*)(at + 4), *(int16_t*)(at + 6), *(int16_t*)(at + 8), *(int*)(at + 0x18),
+                    *(int*)(at + 0x1C), *(int16_t*)(unit + 0x31C));
         BYTE* t = *(BYTE**)(unit + 0x11C);
         if (t)
             PathLog("         action %d target obj %p type %d owner %d pos %d,%d state %d",

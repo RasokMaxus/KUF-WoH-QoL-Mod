@@ -19,20 +19,13 @@
 int g_menuFps = 60;
 
 static uintptr_t g_menuExit;  // 0x59800C: the state update's common tail (expects esi = frame)
-static LARGE_INTEGER g_freq;
 static double g_nextTick, g_nextFrame;
 
 typedef void(__thiscall* VoidMethod)(void* self);
 
-static double Now() {
-    LARGE_INTEGER t;
-    QueryPerformanceCounter(&t);
-    return t.QuadPart * 1000.0 / g_freq.QuadPart;
-}
-
 static void __stdcall MenuFrame() {
     const double tick = 50.0, frame = 1000.0 / g_menuFps;
-    double now = Now();
+    double now = NowMs();
     if (now >= g_nextTick) {
         void* menu = Game<void*>(0xBED218);
         if (menu) (*(VoidMethod**)menu)[0x14 / 4](menu);
@@ -44,16 +37,16 @@ static void __stdcall MenuFrame() {
         if (gfx) (*(VoidMethod**)gfx)[0xC / 4](gfx);
     }
     g_nextFrame += frame;
-    now = Now();
+    now = NowMs();
     if (g_nextFrame <= now) {
         g_nextFrame = now;  // drawing took longer than a frame: carry on without waiting
         return;
     }
     while (g_nextFrame - now > 2.0) {
         Sleep(1);
-        now = Now();
+        now = NowMs();
     }
-    while (Now() < g_nextFrame) YieldProcessor();
+    while (NowMs() < g_nextFrame) YieldProcessor();
 }
 
 __declspec(naked) static void MenuFrameHook() {
@@ -67,7 +60,6 @@ void InstallMenuFps() {
     if (g_menuFps <= 0) return;
     if (g_menuFps < 20) g_menuFps = 20;
     if (g_menuFps > 240) g_menuFps = 240;
-    QueryPerformanceFrequency(&g_freq);
     g_menuExit = 0x59800C + g_slide;
     // mov ecx,[0xBED218] / mov eax,[ecx] / call [eax+0x14]
     static const BYTE expected[11] = {0x8B, 0x0D, 0x18, 0xD2, 0xBE, 0x00, 0x8B, 0x01, 0xFF, 0x50, 0x14};

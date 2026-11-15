@@ -118,8 +118,6 @@ static BYTE* __fastcall Chooser(BYTE* unit, void*, int range, int flag) {
 // A melee unit whose target steps back a little let go and marched off toward the attack-move
 // point, then came back (the "walk away diagonally, then return"). target-priority makes the leash
 // at least twice the unit's search range, so units chase like they do in Brood War.
-void PerfNote(const char* fmt, ...);  // perf.cpp (writes to pathtrace.txt when perf-trace is on)
-extern bool g_perfTrace;
 static uintptr_t g_leashKeep1, g_leashDrop1, g_leashKeep2, g_leashDrop2;
 
 static int __stdcall Leash(BYTE* unit, int leash, int dist) {

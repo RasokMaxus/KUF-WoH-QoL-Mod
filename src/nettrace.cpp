@@ -168,8 +168,6 @@ static WSARecvFromFn o_wsarecvfrom;
 struct Pending { LPWSAOVERLAPPED ovl; SOCKET s; BYTE* buf; sockaddr* from; };
 static Pending g_pending[16];
 
-bool LanRedirect(const sockaddr* to, sockaddr_in* out);  // lan.cpp
-void LanFixSource(sockaddr* from);
 
 static int WINAPI T_wsasendto(SOCKET s, LPWSABUF b, DWORD n, LPDWORD sent, DWORD f, const sockaddr* to, int tl,
                               LPWSAOVERLAPPED o, LPWSAOVERLAPPED_COMPLETION_ROUTINE cr) {

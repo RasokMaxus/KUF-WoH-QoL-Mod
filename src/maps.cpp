@@ -45,14 +45,7 @@ static uintptr_t g_customGo, g_customSkip;
 
 static int __stdcall CustomMapOk(BYTE* record, int minPlayers, int maxPlayers) {
     int n = PlayersInName((const char*)(record + 4));
-    bool ok = n >= minPlayers && n <= maxPlayers;
-    static int logged;
-    if (logged < 12) {
-        logged++;
-        Log("random-maps: custom map \"%.60s\" (%d players) for %d-%d: %s", (const char*)(record + 4), n,
-            minPlayers, maxPlayers, ok ? "yes" : "no");
-    }
-    return ok;
+    return n >= minPlayers && n <= maxPlayers;
 }
 
 __declspec(naked) static void CustomMapHook() {

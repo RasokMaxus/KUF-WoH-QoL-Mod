@@ -18,19 +18,12 @@ bool g_perfTrace = false;
 
 typedef void(__thiscall* StateUpdateFn)(void* frame);
 static StateUpdateFn g_update;
-static LARGE_INTEGER g_freq;
 static double g_lastEnd, g_secondStart;
 static int g_frames, g_lastState = -1;
 static double g_updSum, g_updMax, g_gapMax;
 static int g_mouseMsgs, g_mouseOther;
 static double g_lagSum, g_lagMax;
 static HHOOK g_msgHook;
-
-static double Now() {
-    LARGE_INTEGER t;
-    QueryPerformanceCounter(&t);
-    return t.QuadPart * 1000.0 / g_freq.QuadPart;
-}
 
 static LRESULT CALLBACK MsgHook(int code, WPARAM w, LPARAM l) {
     if (code == HC_ACTION && w == PM_REMOVE) {
@@ -87,7 +80,7 @@ static void CheckStall(double now) {
 static void __fastcall StateUpdate(void* frame) {
     if (!g_msgHook) g_msgHook = SetWindowsHookExA(WH_GETMESSAGE, MsgHook, NULL, GetCurrentThreadId());
     int state = *(int*)((char*)frame + 0x128);
-    double start = Now();
+    double start = NowMs();
     CheckStall(start);
     if (g_secondStart == 0) g_secondStart = start;
     if (state != g_lastState || start - g_secondStart >= 1000) {
@@ -98,7 +91,7 @@ static void __fastcall StateUpdate(void* frame) {
     }
     if (g_lastEnd != 0 && start - g_lastEnd > g_gapMax) g_gapMax = start - g_lastEnd;
     g_update(frame);
-    double end = Now();
+    double end = NowMs();
     double d = end - start;
     g_updSum += d;
     if (d > g_updMax) g_updMax = d;
@@ -130,7 +123,7 @@ static void NoteOrder(const void* data, int len) {
     uint16_t cmd = *(const uint16_t*)data;
     if (cmd == 0x62 || cmd == 0x3F1 || cmd == 0x3EC) return;
     if (g_numPending == 64) memmove(g_pending, g_pending + 1, --g_numPending * sizeof(Pending));
-    g_pending[g_numPending++] = {Hash(data, len), *(const uint16_t*)data, len, Now()};
+    g_pending[g_numPending++] = {Hash(data, len), *(const uint16_t*)data, len, NowMs()};
 }
 
 static int __fastcall SpPush(void* q, void*, const void* data, int len, int x) {
@@ -154,7 +147,7 @@ void PerfOrderDispatched(int len, const void* data) {
             if (g_pending[i].cmd == cmd && g_pending[i].len == len) found = i;
         if (found >= 0) {
             Log("perf order 0x%X len %d: carried out after %.0f ms%s", cmd, len,
-                Now() - g_pending[found].t, g_pending[found].hash == h ? "" : " (bytes changed)");
+                NowMs() - g_pending[found].t, g_pending[found].hash == h ? "" : " (bytes changed)");
             memmove(g_pending + found, g_pending + found + 1, (--g_numPending - found) * sizeof(Pending));
         }
     }
@@ -297,7 +290,6 @@ static void InstallPathTrace() {
 
 void InstallPerf() {
     if (!g_perfTrace) return;
-    QueryPerformanceFrequency(&g_freq);
     InstallOrderTrace();
     InstallPathTrace();
     g_update = (StateUpdateFn)(0x593F80 + g_slide);

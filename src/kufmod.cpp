@@ -57,6 +57,15 @@ char g_dir[MAX_PATH];                     // folder of this DLL (the game folder
 static char g_logPath[MAX_PATH];
 int g_instance = 1;
 
+// Milliseconds from the high-resolution performance counter (menufps.cpp, perf.cpp).
+double NowMs() {
+    static LARGE_INTEGER freq;
+    if (!freq.QuadPart) QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER t;
+    QueryPerformanceCounter(&t);
+    return t.QuadPart * 1000.0 / freq.QuadPart;
+}
+
 void Log(const char* fmt, ...) {
     FILE* f = NULL;
     if (fopen_s(&f, g_logPath, "a") || !f) return;

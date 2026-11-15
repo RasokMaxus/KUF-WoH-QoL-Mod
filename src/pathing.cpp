@@ -20,8 +20,6 @@
 
 bool g_unitAvoidance = true;
 uint32_t g_syncYield;  // for the sync lines (sync.cpp)
-void NoteBlock(BYTE* unit, int idx, bool yieldNow);  // perf.cpp (perf-trace)
-extern bool g_perfTrace;
 
 static uintptr_t g_blockResume, g_yieldNow, g_objTable;
 

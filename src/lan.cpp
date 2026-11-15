@@ -26,7 +26,6 @@ bool g_locusOnline = false;
 bool g_lanTrace = false;
 char g_lanIp[64] = "auto";
 char g_lanPeers[256] = "";  // lan-peers: addresses to send room announcements to, besides broadcast
-void InstallNetTrace();     // nettrace.cpp
 
 static volatile bool g_lan;             // LAN chosen on the Multiplayer screen
 static CRITICAL_SECTION g_lock;          // guards the room data below

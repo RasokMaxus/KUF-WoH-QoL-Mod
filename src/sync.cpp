@@ -13,11 +13,6 @@
 // when the games went apart and which feature's counter moved first.
 #include "kufmod.h"
 
-extern uint32_t g_syncKept, g_syncSwitched, g_syncLeash, g_syncSpots;  // combat.cpp
-extern uint32_t g_syncYield;                                           // pathing.cpp
-void PerfOrderDispatched(int len, const void* data);                   // perf.cpp
-extern bool g_perfTrace;
-
 typedef char(__thiscall* DispatchFn)(void* game, int len, const void* data);
 static DispatchFn g_dispatch;
 static uintptr_t g_syncGame;

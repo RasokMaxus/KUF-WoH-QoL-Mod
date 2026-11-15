@@ -13,6 +13,7 @@ extern int g_instance;        // 1 for the first copy of the game on this PC, 2 
 template <class T> T Game(uintptr_t va) { return *(volatile T*)(va + g_slide); }
 
 void Log(const char* fmt, ...);
+double NowMs();  // milliseconds, high-resolution counter
 
 // Replaces len bytes of game code at va (which must equal expected) with a jump to target and
 // NOPs. *resume receives the address right after the replaced bytes.
@@ -34,6 +35,18 @@ extern bool g_perfTrace;
 void InstallPerf();
 // sync.cpp
 void InstallSyncLog();
+extern uint32_t g_syncKept, g_syncSwitched, g_syncLeash, g_syncSpots;  // combat.cpp counters
+extern uint32_t g_syncYield;                                           // pathing.cpp counter
+// perf.cpp callbacks (perf-trace)
+void PerfNote(const char* fmt, ...);                   // a line in pathtrace.txt
+void NoteBlock(BYTE* unit, int idx, bool yieldNow);    // pathing.cpp: a unit is in the way
+void PerfOrderDispatched(int len, const void* data);   // sync.cpp: an order was carried out
+// nettrace.cpp / lan.cpp
+void InstallNetTrace();
+struct sockaddr;
+struct sockaddr_in;
+bool LanRedirect(const sockaddr* to, sockaddr_in* out);
+void LanFixSource(sockaddr* from);
 // maps.cpp
 extern bool g_randomMaps, g_meleeDefault;
 void InstallRandomMaps();

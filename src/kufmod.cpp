@@ -26,6 +26,7 @@
 
 #include "kufmod.h"
 #include <ctype.h>
+#include <intrin.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1369,6 +1370,78 @@ static DWORD WINAPI Watcher(LPVOID) {
     }
 }
 
+// ---------------------------------------------------------------- crash report
+// Access violations and other fatal faults are written to kufmod.log (the first 3 a run): where
+// (game address without the ASLR slide, or offset in this DLL), the registers and the top of the
+// stack, with game return addresses marked, so a crash can be found in the disassembly.
+static LONG g_crashLogs;
+
+static void Where(char* out, size_t n, uintptr_t a) {
+    uintptr_t base = g_slide + 0x400000;
+    MEMORY_BASIC_INFORMATION mbi;
+    if (a >= base && a < base + 0x800000) sprintf_s(out, n, "game 0x%X", (unsigned)(a - g_slide));
+    else if (a >= (uintptr_t)g_inst && VirtualQuery((void*)a, &mbi, sizeof mbi) && mbi.AllocationBase == g_inst)
+        sprintf_s(out, n, "kufmod+0x%X", (unsigned)(a - (uintptr_t)g_inst));
+    else sprintf_s(out, n, "%08X", (unsigned)a);
+}
+
+static LONG CALLBACK CrashReport(EXCEPTION_POINTERS* e) {
+    DWORD code = e->ExceptionRecord->ExceptionCode;
+    if (code != EXCEPTION_ACCESS_VIOLATION && code != EXCEPTION_ILLEGAL_INSTRUCTION &&
+        code != EXCEPTION_STACK_OVERFLOW && code != EXCEPTION_INT_DIVIDE_BY_ZERO &&
+        code != EXCEPTION_PRIV_INSTRUCTION)
+        return EXCEPTION_CONTINUE_SEARCH;
+    if (InterlockedIncrement(&g_crashLogs) > 3) return EXCEPTION_CONTINUE_SEARCH;
+    CONTEXT* c = e->ContextRecord;
+    char at[64];
+    Where(at, sizeof at, c->Eip);
+    Log("CRASH %08X at %s (data %08X) eax %08X ebx %08X ecx %08X edx %08X esi %08X edi %08X ebp %08X esp %08X",
+        code, at, (unsigned)e->ExceptionRecord->ExceptionInformation[1], c->Eax, c->Ebx, c->Ecx, c->Edx,
+        c->Esi, c->Edi, c->Ebp, c->Esp);
+    const uintptr_t* sp = (const uintptr_t*)c->Esp;
+    for (int i = 0; i < 48; i++) {
+        MEMORY_BASIC_INFORMATION mbi;
+        if (!VirtualQuery(sp + i, &mbi, sizeof mbi) || mbi.State != MEM_COMMIT) break;
+        uintptr_t v = sp[i];
+        Where(at, sizeof at, v);
+        if (strncmp(at, "game", 4) == 0 || strncmp(at, "kufmod", 6) == 0) Log("  stack+%02X: %s", i * 4, at);
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+// The game's own ways out (import table: ExitProcess 0xA16630, TerminateProcess 0xA16538,
+// PostQuitMessage 0xA16A30) are logged with the caller, so a silent close can be traced too.
+static void(WINAPI* g_exitProcess)(UINT);
+static BOOL(WINAPI* g_terminateProcess)(HANDLE, UINT);
+static void(WINAPI* g_postQuit)(int);
+
+static void WINAPI LogExitProcess(UINT code) {
+    char at[64];
+    Where(at, sizeof at, (uintptr_t)_ReturnAddress());
+    Log("exit: ExitProcess(%u) from %s", code, at);
+    g_exitProcess(code);
+}
+static BOOL WINAPI LogTerminateProcess(HANDLE h, UINT code) {
+    if (h == GetCurrentProcess() || GetProcessId(h) == GetCurrentProcessId()) {
+        char at[64];
+        Where(at, sizeof at, (uintptr_t)_ReturnAddress());
+        Log("exit: TerminateProcess(self, %u) from %s", code, at);
+    }
+    return g_terminateProcess(h, code);
+}
+static void WINAPI LogPostQuit(int code) {
+    char at[64];
+    Where(at, sizeof at, (uintptr_t)_ReturnAddress());
+    Log("exit: PostQuitMessage(%d) from %s", code, at);
+    g_postQuit(code);
+}
+
+static void HookImport(uintptr_t slotVa, void* mine, void** original) {
+    uintptr_t cur = *(uintptr_t*)(slotVa + g_slide), repl = (uintptr_t)mine;
+    *original = (void*)cur;
+    Patch(slotVa, &cur, &repl, 4);
+}
+
 BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     if (reason != DLL_PROCESS_ATTACH) return TRUE;
     g_inst = inst;
@@ -1398,6 +1471,10 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
         if (!fopen_s(&f, g_logPath, "w") && f) fclose(f);
     }
     Log("kufmod 2.0.1 loaded, base %p", (void*)(g_slide + 0x400000));
+    AddVectoredExceptionHandler(1, CrashReport);
+    HookImport(0xA16630, (void*)LogExitProcess, (void**)&g_exitProcess);
+    HookImport(0xA16538, (void*)LogTerminateProcess, (void**)&g_terminateProcess);
+    HookImport(0xA16A30, (void*)LogPostQuit, (void**)&g_postQuit);
     LoadConfig();
     InstallEconomy();
     InstallLan();

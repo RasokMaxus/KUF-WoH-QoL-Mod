@@ -67,6 +67,10 @@ grid keys.
   both players need the same setting.
 - **Sheep and chickens:** units always walk around neutral critters (they stood facing a sheep
   while the group jammed up behind them).
+- **No LocusGameChain in LAN-only mode:** with `locus-online: false` the game no longer starts
+  `LocusGameChain.exe` in the background.
+- **Crash and exit reports in `kufmod.log`:** if the game crashes or closes by itself, the log
+  says where in the game's code.
 - `perf-trace` logs `perf stall` lines when the match clock stops for more than 0.2 s, and no
   longer logs the game's own per-turn orders.
 

@@ -786,6 +786,30 @@ __declspec(naked) static void RoomListHook() {  // replaces push ebp / mov ebp,e
 // Create (0x6E05EF) needs 0x57D1A0() >= 2 and 0x57C4E0() >= 6, both asked from the LocusGameChain
 // window. In LAN mode they report ready.
 typedef int(__cdecl* IntFn)();
+
+// ---------------------------------------------------------------- no LocusGameChain.exe
+// 0x57E320() starts <game>\LocusGameChain\LocusGameChain.exe (ShellExecuteEx; or finds its window
+// and opens the process; handle at 0xBEC944) and returns true. Its only caller, the GameChain
+// node's start state 0x6C1180, keeps the result at +0x48. With locus-online: false the mod never
+// uses Locus, so the launch is skipped and "started" is returned: the next step 0x6C1200 then
+// waits for the Locus window (0x57C5C0, FindWindow, 0 = none) and keeps waiting. (Returning
+// "not started" made the game close at startup.)
+static uintptr_t g_launchResume;
+
+__declspec(naked) static void LocusLaunchHook() {
+    __asm {
+        cmp byte ptr [g_locusOnline], 0
+        jne launch
+        mov eax, 1                     // "started" (nothing is)
+        ret
+    launch:
+        push ebp                       // the replaced instructions
+        mov ebp, esp
+        push -1
+        jmp dword ptr [g_launchResume]
+    }
+}
+
 static int __cdecl ChainState1() { return g_lan ? 2 : ((IntFn)(0x57D1A0 + g_slide))(); }
 static int __cdecl ChainState2() { return g_lan ? 6 : ((IntFn)(0x57C4E0 + g_slide))(); }
 
@@ -966,6 +990,9 @@ static bool InstallLanHooks() {
     Hook(0x57C5F0, roomList, 5, RoomListHook, &g_roomListResume);
     HookCallTo(0x6E05EF, 0x57D1A0, ChainState1);
     HookCallTo(0x6E05F9, 0x57C4E0, ChainState2);
+    static const BYTE launch[5] = {0x55, 0x8B, 0xEC, 0x6A, 0xFF};
+    if (!g_locusOnline && !Hook(0x57E320, launch, 5, LocusLaunchHook, &g_launchResume))
+        Log("lan: unexpected code at 0x57E320, LocusGameChain still starts");
     return true;
 }
 
@@ -993,6 +1020,6 @@ void InstallLan() {
     HANDLE t = CreateThread(NULL, 0, LanThread, NULL, 0, NULL);
     if (t) CloseHandle(t);
     Log("lan: Multiplayer %s, address setting \"%s\", extra peers \"%s\"",
-        g_locusOnline ? "shows Locus Online / LAN" : "goes straight to LAN (locus-online: false)", g_lanIp,
+        g_locusOnline ? "shows Locus Online / LAN" : "goes straight to LAN (locus-online: false; LocusGameChain is not started)", g_lanIp,
         g_lanPeers);
 }

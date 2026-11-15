@@ -56,6 +56,17 @@ grid keys.
 - With a mixed selection, training goes to a building that can train that unit, and placing a
   building uses a selected worker as the builder (the game used whatever came first). Always on;
   both players need this version.
+- **Select up to 240 units** (the game: 16). The panel shows the first 16 portraits; every
+  selected unit takes orders. Saved games keep big selections (old saves load as before).
+  Formations work with any number: more than 16 form up in blocks of 16, one behind the other.
+  Control groups still hold 16. Setting: `big-selection: true`; both players need it.
+- **Moves spread out:** a move or Shift-queued move to open ground gives each unit its own spot
+  around the point, keeping the group's shape in a compact block (the game sent every unit to the
+  same point, except for small groups in multiplayer, so big armies jammed and shoved there).
+- **Fast turning:** units turn twice as fast before they walk. Setting: `fast-turning: true`;
+  both players need the same setting.
+- **Sheep and chickens:** units always walk around neutral critters (they stood facing a sheep
+  while the group jammed up behind them).
 - `perf-trace` logs `perf stall` lines when the match clock stops for more than 0.2 s, and no
   longer logs the game's own per-turn orders.
 

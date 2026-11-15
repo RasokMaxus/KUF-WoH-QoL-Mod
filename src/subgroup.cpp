@@ -43,7 +43,7 @@ static uintptr_t g_tabResume, g_tabDone, g_pickerResume, g_pickerSkip, g_builder
 static int g_active;              // index of the active subgroup
 static uint32_t g_activeSig;      // selection the index belongs to
 static bool g_cut;                // the panel's copy is cut during this fill
-static int16_t g_savedIds[16], g_savedCount;
+static int16_t g_savedIds[240], g_savedCount;  // up to g_selMax used
 static int32_t g_page;            // the grid page last used for this selection/subgroup
 
 static BYTE* Obj(int id) {
@@ -65,10 +65,10 @@ static uint32_t Key(BYTE* o) {
 // The real selection's ids (valid ones) and its subgroup keys in order.
 static int Selection(BYTE* player, int16_t* ids, uint32_t* keys, int* nKeys) {
     int count = *(int16_t*)(player + 0x1084);
-    const int16_t* list = (const int16_t*)(player + 0x1086);
+    const int16_t* list = (const int16_t*)(player + g_localIds);
     int n = 0;
     *nKeys = 0;
-    for (int i = 0; i < count && n < 64; i++) {
+    for (int i = 0; i < count && n < 240; i++) {
         BYTE* o = Obj(list[i]);
         if (!o) continue;
         ids[n++] = list[i];
@@ -100,8 +100,8 @@ void SubgroupBeforeFill(BYTE* menu) {
     if (*(int32_t*)(menu + 0x18A0) != -1) return;  // a hero is selected
     int16_t* buffer = *(int16_t**)(menu + 0x189C);
     int menuCount = *(int16_t*)(menu + 0x1898);
-    if (!buffer || menuCount < 2 || menuCount > 16) return;  // not a multiple selection
-    int16_t ids[64];
+    if (!buffer || menuCount < 2 || menuCount > g_selMax) return;  // not a multiple selection
+    int16_t ids[240];
     uint32_t keys[32];
     int nKeys;
     int n = Selection(player, ids, keys, &nKeys);
@@ -120,11 +120,11 @@ void SubgroupBeforeFill(BYTE* menu) {
     if (*page == -1) *page = g_page;
     else g_page = *page;
     g_savedCount = (int16_t)menuCount;
-    memcpy(g_savedIds, buffer, sizeof g_savedIds);
+    memcpy(g_savedIds, buffer, menuCount * sizeof g_savedIds[0]);
     int m = 0;
-    for (int i = 0; i < n && m < 16; i++)
+    for (int i = 0; i < n && m < menuCount; i++)
         if (Key(Obj(ids[i])) == keys[g_active]) buffer[m++] = ids[i];
-    for (int i = m; i < 16; i++) buffer[i] = -1;
+    for (int i = m; i < menuCount; i++) buffer[i] = -1;
     *(int16_t*)(menu + 0x1898) = (int16_t)m;
     *(int32_t*)(menu + 0x18A4) = (int16_t)keys[g_active];  // the one type
     g_cut = true;
@@ -134,7 +134,7 @@ void SubgroupBeforeFill(BYTE* menu) {
 void SubgroupAfterFill(BYTE* menu) {
     if (!g_cut) return;
     g_cut = false;
-    memcpy(*(int16_t**)(menu + 0x189C), g_savedIds, sizeof g_savedIds);
+    memcpy(*(int16_t**)(menu + 0x189C), g_savedIds, g_savedCount * sizeof g_savedIds[0]);
     *(int16_t*)(menu + 0x1898) = g_savedCount;
     // +0x18A4 keeps the subgroup's type: with 10000 (mixed) the panel clears the grid again
     // after the fill. The game writes it anew on every selection change.

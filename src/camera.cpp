@@ -35,7 +35,7 @@ static uintptr_t g_resumeTap, g_resumeCenter, g_resumeGroup, g_sortFn;
 static int g_next;            // how many tours steps the next double tap goes past the first
 static int g_lastGroup = -1;  // the group key pressed last
 
-static const int kGroups = 30, kMax = 16;
+static const int kGroups = 30, kMax = 240;  // groups hold 16 ids; a selection up to 240
 static uint32_t g_clock;
 static uint32_t g_stamp[0x8000];          // per object id: clock when it was selected
 static int16_t g_order[kGroups][kMax];    // per group: ids in the recorded order
@@ -52,7 +52,7 @@ static BYTE* Object(int id) {
 // After the selection sort of a select click: stamp the newly selected ids.
 static void __cdecl OnSelect(BYTE* player, const int16_t* count, const int16_t* ids) {
     int oldN = *(int16_t*)(player + 0x1084);
-    const int16_t* old = (const int16_t*)(player + 0x1086);
+    const int16_t* old = (const int16_t*)(player + g_localIds);
     for (int i = 0; i < *count; i++) {
         int id = ids[i];
         if (id < 0) continue;

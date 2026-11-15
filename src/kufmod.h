@@ -55,6 +55,7 @@ extern bool g_targetPriority;
 void InstallCombat();
 // pathing.cpp
 extern bool g_unitAvoidance;
+extern bool g_fastTurning;  // pathing.cpp
 void InstallPathing();
 // turns.cpp
 extern int g_spTurn, g_netTurns[3], g_netStart;
@@ -69,6 +70,11 @@ void SubgroupBeforeFill(BYTE* menu);  // called by the grid fill wrapper
 void SubgroupAfterFill(BYTE* menu);
 // select.cpp
 extern bool g_selectConstruction;
+
+// bigselect.cpp: big-selection (240 units). Offsets of the id arrays in the player object.
+extern bool g_bigSelection;
+extern int g_selMax, g_syncIds, g_localIds;
+void InstallBigSelection();
 void InstallSelectConstruction();
 // menufps.cpp
 extern int g_menuFps;

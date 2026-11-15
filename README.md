@@ -69,10 +69,12 @@ Changes apply the next time the game starts.
 | `network-speed` | ticks for the three Network Speed choices (3, 6, 10; the game's own: 6, 10, 14) |
 | `network-speed-start` | the Network Speed a multiplayer match starts with: `low` (default), `high` or `extra` |
 | `unit-avoidance` | units walk around blockers instead of waiting |
+| `fast-turning` | units turn twice as fast before they walk |
 | `target-priority` | units prefer fighters, keep and chase their target, spread around buildings |
 | `campaign-timer` | the match clock in campaign missions |
 | `group-camera` | double-tapping a control group goes to one of its buildings/units, each further tap to the next (buildings by type, in the order you selected them) |
 | `tab-subgroups` | a selection of several building/unit types shows one type's buttons; Tab switches type |
+| `big-selection` | up to 240 units in one selection (the game: 16); the panel shows the first 16. Gameplay: all players need the same setting |
 | `select-construction` | buildings under construction can be selected with other buildings and added with Shift+number |
 | `random-maps` | "Random" maps pick from every map with the right number of players |
 | `melee-default` | maps start on Melee unless their name contains "(Custom)" |
@@ -150,7 +152,7 @@ Several features change the game's rules. Everyone in a match needs **the same m
 the same values for these settings, or the match goes out of sync:
 
 `standard-mode`, `empty-nodes`, `network-speed`, `network-speed-start`, `unit-avoidance`,
-`target-priority`, `multiplayer-computers`.
+`fast-turning`, `big-selection`, `target-priority`, `multiplayer-computers`.
 
 The easiest way: everyone uses the `kufmod.yml` from the [`Release`](Release) folder and only
 changes hotkeys and LAN addresses. With `standard-mode`, `empty-nodes`, `unit-avoidance` and

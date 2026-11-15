@@ -271,6 +271,8 @@ static const char* DEFAULT_CONFIG =
     "# units that is walking; otherwise (a stuck unit, a chicken, an enemy) it walks around at\n"
     "# once instead of standing in line. false = the game's own behaviour.\n"
     "unit-avoidance: true\n"
+    "# Units turn twice as fast (90 degrees a tick) before they walk. false = the game's own.\n"
+    "fast-turning: true\n"
     "\n"
     "# Target priority\n"
     "# Units choosing their own target prefer enemy fighters, then workers, then towers, then other\n"
@@ -294,6 +296,9 @@ static const char* DEFAULT_CONFIG =
     "# (so you can train from it), and Tab switches to the next type. With only one type Tab\n"
     "# does what it always did. false = the game's own.\n"
     "tab-subgroups: true\n"
+    "# Up to 240 units in one selection (the game: 16). The panel shows the first 16. Gameplay:\n"
+    "# every player in a multiplayer match needs the same setting. false = the game's own.\n"
+    "big-selection: true\n"
     "\n"
     "# Random maps\n"
     "# The \"Random (N players)\" map choices pick from every map for that many players (the game\n"
@@ -475,11 +480,13 @@ static void LoadConfig() {
             else if (!strcmp(key, "menu-fps")) g_menuFps = atoi(value);
             else if (!strcmp(key, "single-player-turn")) g_spTurn = atoi(value);
             else if (!strcmp(key, "unit-avoidance")) g_unitAvoidance = IsTrue(value);
+            else if (!strcmp(key, "fast-turning")) g_fastTurning = IsTrue(value);
             else if (!strcmp(key, "target-priority")) g_targetPriority = IsTrue(value);
             else if (!strcmp(key, "campaign-timer")) g_campaignTimer = IsTrue(value);
             else if (!strcmp(key, "group-camera")) g_groupCamera = IsTrue(value);
             else if (!strcmp(key, "select-construction")) g_selectConstruction = IsTrue(value);
             else if (!strcmp(key, "tab-subgroups")) g_tabSubgroups = IsTrue(value);
+            else if (!strcmp(key, "big-selection")) g_bigSelection = IsTrue(value);
             else if (!strcmp(key, "random-maps")) g_randomMaps = IsTrue(value);
             else if (!strcmp(key, "melee-default")) g_meleeDefault = IsTrue(value);
             else if (!strcmp(key, "network-speed-start"))
@@ -1397,6 +1404,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     InstallAiMp();
     InstallPerf();
     InstallSyncLog();
+    InstallBigSelection();  // after the order traces that wrap the network queue
     InstallMenuFps();
     InstallTurns();
     InstallPathing();

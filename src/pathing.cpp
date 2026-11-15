@@ -16,6 +16,9 @@
 // (state 3 turn+step or 4 walk). Behind anything else (a stuck or idle unit, a critter, an enemy
 // or ally) it goes around at once. Head-on cases are left to the game. The decision only uses
 // game state, so it is the same on every PC (multiplayer needs everyone on the same setting).
+// (Tried 2026-11-15: always waiting behind own units going the same way, and in lines at chokes.
+// Units then followed each other in one long file and stop-stepped: blocks per moving minute
+// 12 -> 47. The game's choice of who goes around is what spreads a group out.)
 #include "kufmod.h"
 
 bool g_unitAvoidance = true;
@@ -33,7 +36,11 @@ static int __stdcall Decide(BYTE* unit, int idx) {
         bool headOn = (unsigned)(d - 5) <= 6;
         int16_t state = *(int16_t*)(b + 0x31A);
         bool ownWalking = *(int16_t*)(b + 8) == *(int16_t*)(unit + 8) && (state == 3 || state == 4);
-        yieldNow = !headOn && !ownWalking;
+        // Neutral critters (player 10: sheep, chickens) do not take part in the head-on rule
+        // (0x47ECD0 expects both to step aside), so units stood facing a sheep while the group
+        // jammed up behind them: always go around those.
+        bool critter = *(int16_t*)(b + 8) == 10;
+        yieldNow = (!headOn || critter) && !ownWalking;
         if (yieldNow) g_syncYield++;
     }
     if (g_perfTrace) NoteBlock(unit, idx, yieldNow);
@@ -55,6 +62,28 @@ __declspec(naked) static void BlockHook() {
     yield:
         jmp dword ptr [g_yieldNow]   // 0x47F8A6: avoid units + new path now (uses edi)
     }
+}
+
+// Turning (state 3 of 0x47E540, 0x47EAB8): the unit turns 2 of 16 directions a tick toward its
+// path and only steps when within 1 direction. fast-turning: 4 a tick, steps when within 3.
+bool g_fastTurning = true;
+
+static void InstallFastTurning() {
+    struct P { uint32_t va; BYTE was[3], now[3]; } p[] = {
+        {0x47EACB, {0x83, 0xE8, 0x02}, {0x83, 0xE8, 0x04}},  // sub eax, 2 -> 4
+        {0x47EACE, {0x83, 0xF8, 0x0B}, {0x83, 0xF8, 0x08}},  // turn when |diff| in 4..12
+        {0x47EAE7, {0x8D, 0x42, 0x02}, {0x8D, 0x42, 0x04}},  // +2 -> +4
+        {0x47EAF0, {0x8D, 0x42, 0xF2}, {0x8D, 0x42, 0xF4}},  // wrap -14 -> -12
+        {0x47EB09, {0x8D, 0x42, 0xFE}, {0x8D, 0x42, 0xFC}},  // -2 -> -4
+        {0x47EB10, {0x8D, 0x42, 0x0E}, {0x8D, 0x42, 0x0C}},  // wrap +14 -> +12
+    };
+    for (const P& x : p)
+        if (memcmp((BYTE*)(x.va + g_slide), x.was, 3)) {
+            Log("unexpected game code at 0x%X (different game version?). fast-turning off.", x.va);
+            return;
+        }
+    for (const P& x : p) Patch(x.va, x.was, x.now, 3);
+    Log("fast-turning on");
 }
 
 // Step results 1/2 (0x47D530: blocked, but not "unit with a known index" - e.g. the cells of a
@@ -87,9 +116,10 @@ __declspec(naked) static void ModeBlockHook() {
 }
 
 void InstallPathing() {
-    if (!g_unitAvoidance && !g_perfTrace) return;
+    if (!g_unitAvoidance && !g_perfTrace && !g_fastTurning) return;
     g_objTable = 0xB870C0 + g_slide;
     g_yieldNow = 0x47F8A6 + g_slide;
+    if (g_fastTurning) InstallFastTurning();
     static const BYTE yieldCode[4] = {0xB8, 0x0E, 0x00, 0x00};  // mov eax, 0xE
     if (memcmp((void*)g_yieldNow, yieldCode, sizeof yieldCode)) {
         Log("unexpected game code at 0x47F8A6 (different game version?). unit-avoidance off.");

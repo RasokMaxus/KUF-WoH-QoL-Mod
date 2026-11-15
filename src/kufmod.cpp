@@ -282,6 +282,19 @@ static const char* DEFAULT_CONFIG =
     "# Show the match clock (top right, as in skirmish and multiplayer) in campaign missions too.\n"
     "campaign-timer: true\n"
     "\n"
+    "# Group camera\n"
+    "# Double-tapping a control group key moves the camera to one building or unit of the group,\n"
+    "# and each further tap to the next one: buildings by type in the order you selected them,\n"
+    "# then units (the game centers between all of them, often empty ground). false = the game's own.\n"
+    "group-camera: true\n"
+    "# Buildings under construction can be selected together with other buildings (Shift+click)\n"
+    "# and added to control groups with Shift+number. false = the game's own.\n"
+    "select-construction: true\n"
+    "# A selection of several building or unit types shows the buttons of one type at a time\n"
+    "# (so you can train from it), and Tab switches to the next type. With only one type Tab\n"
+    "# does what it always did. false = the game's own.\n"
+    "tab-subgroups: true\n"
+    "\n"
     "# Random maps\n"
     "# The \"Random (N players)\" map choices pick from every map for that many players (the game\n"
     "# only used six community maps, always in the same order). false = as before.\n"
@@ -464,6 +477,9 @@ static void LoadConfig() {
             else if (!strcmp(key, "unit-avoidance")) g_unitAvoidance = IsTrue(value);
             else if (!strcmp(key, "target-priority")) g_targetPriority = IsTrue(value);
             else if (!strcmp(key, "campaign-timer")) g_campaignTimer = IsTrue(value);
+            else if (!strcmp(key, "group-camera")) g_groupCamera = IsTrue(value);
+            else if (!strcmp(key, "select-construction")) g_selectConstruction = IsTrue(value);
+            else if (!strcmp(key, "tab-subgroups")) g_tabSubgroups = IsTrue(value);
             else if (!strcmp(key, "random-maps")) g_randomMaps = IsTrue(value);
             else if (!strcmp(key, "melee-default")) g_meleeDefault = IsTrue(value);
             else if (!strcmp(key, "network-speed-start"))
@@ -619,7 +635,9 @@ static void AfterFill(BYTE* menu) {
 }
 
 static int __fastcall FillWrapper(BYTE* menu, void* unused) {
+    SubgroupBeforeFill(menu);  // subgroup.cpp: one type of a mixed selection
     int result = g_originalFill(menu, unused);
+    SubgroupAfterFill(menu);   // the panel shows the whole selection again
     AfterFill(menu);
     return result;
 }
@@ -665,15 +683,17 @@ __declspec(naked) static void GridExecHook() {
 }
 
 static bool InstallBuildButton() {
-    if (!g_buildButton) return true;
-    if (!PrepareBuildIcons(&g_iconHuman, &g_iconDevil)) {
-        g_iconHuman = g_iconDevil = 0;
-        Log("build button will use a building picture");
-    }
-    static const BYTE expected[7] = {0x0F, 0xBF, 0x8F, 0x86, 0x02, 0x00, 0x00};
+    if (!g_buildButton && !g_tabSubgroups) return true;  // the fill wrapper serves both
     uintptr_t* slot = (uintptr_t*)(0xA3BD0C + 0x64 + g_slide);  // KufMenu vtable, +0x64
     if (*slot != 0x50EFF0 + g_slide) return false;
-    if (!Hook(0x513396, expected, sizeof expected, GridExecHook, &g_execResume)) return false;
+    if (g_buildButton) {
+        if (!PrepareBuildIcons(&g_iconHuman, &g_iconDevil)) {
+            g_iconHuman = g_iconDevil = 0;
+            Log("build button will use a building picture");
+        }
+        static const BYTE expected[7] = {0x0F, 0xBF, 0x8F, 0x86, 0x02, 0x00, 0x00};
+        if (!Hook(0x513396, expected, sizeof expected, GridExecHook, &g_execResume)) return false;
+    }
     g_originalFill = (FillFn)*slot;
     DWORD old;
     VirtualProtect(slot, 4, PAGE_READWRITE, &old);
@@ -1382,6 +1402,9 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     InstallPathing();
     InstallCombat();
     InstallCampaignTimer();
+    InstallGroupCamera();
+    InstallSelectConstruction();
+    InstallSubgroups();
     InstallRandomMaps();
     if (!InstallLocusQuestion()) Log("unexpected game code at 0x57CC39 (different game version?). Locus question unchanged.");
     if (!InstallKeyHook()) Log("unexpected game code at 0x502D19 (different game version?). Hotkeys disabled.");

@@ -59,6 +59,17 @@ void InstallPathing();
 // turns.cpp
 extern int g_spTurn, g_netTurns[3], g_netStart;
 void InstallTurns();
+// camera.cpp
+extern bool g_groupCamera;
+void InstallGroupCamera();
+// subgroup.cpp
+extern bool g_tabSubgroups;
+void InstallSubgroups();
+void SubgroupBeforeFill(BYTE* menu);  // called by the grid fill wrapper
+void SubgroupAfterFill(BYTE* menu);
+// select.cpp
+extern bool g_selectConstruction;
+void InstallSelectConstruction();
 // menufps.cpp
 extern int g_menuFps;
 void InstallMenuFps();

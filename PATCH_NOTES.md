@@ -43,6 +43,19 @@ grid keys.
 - **`sync` lines in `kufmod.log`** during network matches (every 200 turns): the game's random
   generator and the mod's decision counters. If a match goes out of sync, compare these lines in
   both players' logs: the first one that differs shows when.
+- **Group camera:** double-tapping a control group key moves the camera to one unit or building
+  of the group, and each further tap to the next one: buildings first, by type, in the order you
+  selected them, then units (the game centered between all of them, often empty ground).
+  Camera only, no effect on the match. Setting: `group-camera: true`.
+- **Buildings under construction** can be selected together with other buildings (Shift+click)
+  and added to control groups with Shift+number; when finished they stay in their groups.
+  Setting: `select-construction: true`.
+- **Tab between types:** a selection (or control group) of several building or unit types shows
+  the buttons of one type at a time, so you can train from it, and Tab switches to the next type.
+  With only one type selected, Tab works as before. Setting: `tab-subgroups: true`.
+- With a mixed selection, training goes to a building that can train that unit, and placing a
+  building uses a selected worker as the builder (the game used whatever came first). Always on;
+  both players need this version.
 - `perf-trace` logs `perf stall` lines when the match clock stops for more than 0.2 s, and no
   longer logs the game's own per-turn orders.
 

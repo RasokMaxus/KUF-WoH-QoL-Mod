@@ -71,6 +71,9 @@ Changes apply the next time the game starts.
 | `unit-avoidance` | units walk around blockers instead of waiting |
 | `target-priority` | units prefer fighters, keep and chase their target, spread around buildings |
 | `campaign-timer` | the match clock in campaign missions |
+| `group-camera` | double-tapping a control group goes to one of its buildings/units, each further tap to the next (buildings by type, in the order you selected them) |
+| `tab-subgroups` | a selection of several building/unit types shows one type's buttons; Tab switches type |
+| `select-construction` | buildings under construction can be selected with other buildings and added with Shift+number |
 | `random-maps` | "Random" maps pick from every map with the right number of players |
 | `melee-default` | maps start on Melee unless their name contains "(Custom)" |
 | `perf-trace` | write frame times, order delays and unit movement details for bug reports (off) |

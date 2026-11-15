@@ -17,3 +17,7 @@ __pycache__/
 
 # local previews
 *.png
+
+# archives made for sharing builds
+*.7z
+*.zip
